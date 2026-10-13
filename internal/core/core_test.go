@@ -104,15 +104,14 @@ func TestSearchStaysInAllowedSpaces(t *testing.T) {
 	t.Parallel()
 	f := fixture(t)
 	s := service(t, f, people.Own)
-	hits, err := s.Search(context.Background(), `runbook "quoted"`, 0)
-	if err != nil {
+	if _, err := s.Search(context.Background(), `runbook "quoted"`, 0); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(f.CQL[0], `space in ("DOC")`) || !strings.Contains(f.CQL[0], `text ~ "runbook \"quoted\""`) {
 		t.Errorf("CQL = %s", f.CQL[0])
 	}
-	// The fake ignores nothing here, so search everything to see the recheck.
-	hits, err = s.Search(context.Background(), "a", 0)
+	// Every result is checked again against the allowed spaces.
+	hits, err := s.Search(context.Background(), "a", 0)
 	if err != nil {
 		t.Fatal(err)
 	}

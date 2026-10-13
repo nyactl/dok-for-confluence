@@ -98,6 +98,11 @@ func partName(n adf.Node) string {
 	if skipped[n.Type] {
 		return ""
 	}
+	// The editor leaves empty paragraphs and headings, which Markdown cannot
+	// hold; dropping them is no loss.
+	if (n.Type == "paragraph" || n.Type == "heading") && len(n.Content) == 0 {
+		return ""
+	}
 	if name, ok := partNames[n.Type]; ok {
 		return name
 	}

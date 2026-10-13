@@ -418,3 +418,37 @@ func TestUpdateWithoutMacrosIsUnchanged(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// The editor leaves empty paragraphs, which Markdown cannot hold; losing
+// them is no reason to refuse an update.
+func TestUpdateIgnoresEmptyParagraphs(t *testing.T) {
+	t.Parallel()
+	f := fixture(t)
+	f.AddPage(confluencetest.Page{ID: "111", SpaceID: "10", ParentID: "100", Title: "Empty", AuthorID: "acc-me",
+		Body: json.RawMessage(`{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"text"}]},{"type":"paragraph"},{"type":"heading","attrs":{"level":2}},{"type":"paragraph","attrs":{"localId":"p1"}}]}`)})
+	s := service(t, f, people.Own)
+	ctx := context.Background()
+	v, err := s.Page(ctx, "111")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.PlanUpdate(ctx, UpdateInput{Page: "111", Version: v.Version, Markdown: v.Body + "\n\nmore"}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestUpdateKeepsHeadingsInLists(t *testing.T) {
+	t.Parallel()
+	f := fixture(t)
+	f.AddPage(confluencetest.Page{ID: "112", SpaceID: "10", ParentID: "100", Title: "List", AuthorID: "acc-me",
+		Body: json.RawMessage(`{"type":"doc","version":1,"content":[{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"in a list"}]}]}]}]}`)})
+	s := service(t, f, people.Own)
+	ctx := context.Background()
+	v, err := s.Page(ctx, "112")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.PlanUpdate(ctx, UpdateInput{Page: "112", Version: v.Version, Markdown: v.Body + "\n\nmore"}); err == nil || !strings.Contains(err.Error(), "heading") {
+		t.Errorf("err = %v", err)
+	}
+}

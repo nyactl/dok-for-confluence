@@ -4,6 +4,12 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+## [0.1.3] - 2026-10-13
+
+### Fixed
+
+- Updates of pages with empty paragraphs or headings, which the Confluence editor leaves, are no longer refused.
+
 ## [0.1.2] - 2026-10-13
 
 ### Fixed
@@ -27,6 +33,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Scoped API tokens through the Atlassian API gateway, with the missing scope named in errors.
 - Profiles, and development builds that only use profiles that opted in.
 
+[0.1.3]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.3
 [0.1.2]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.2
 [0.1.1]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.1
 [0.1.0]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.0

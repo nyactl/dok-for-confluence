@@ -210,6 +210,22 @@ func TestIntegration(t *testing.T) {
 		}
 	})
 
+	t.Run("empty paragraphs do not block updates", func(t *testing.T) {
+		doc := []byte(`{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"text"}]},{"type":"paragraph"},{"type":"heading","attrs":{"level":2}},{"type":"paragraph"}]}`)
+		created, err := s.cc.CreatePage(ctx, s.svc.Spaces()[0].ID, s.parent, "dok empty paragraphs "+s.run, doc, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := s.svc.Page(ctx, created.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		applied(t)(s.svc.PlanUpdate(ctx, core.UpdateInput{Page: created.ID, Markdown: p.Body + "\n\nmore", Version: p.Version}))
+		if after, err := s.svc.Page(ctx, created.ID); err != nil || after.Body != "text\n\nmore" {
+			t.Errorf("after update = %q, %v", after.Body, err)
+		}
+	})
+
 	t.Run("comment with mention of me", func(t *testing.T) {
 		applied(t)(s.svc.PlanComment(ctx, draftID, "Reviewed, @[Me]."))
 		cs, err := s.svc.Comments(ctx, draftID, 10)

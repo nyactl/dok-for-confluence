@@ -4,6 +4,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+## [0.1.0] - 2026-10-13
+
 ### Added
 
 - Read pages as Markdown, list child pages, comments and attachments, and search the allowed spaces, from the CLI and as MCP tools.
@@ -12,3 +14,5 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Privacy mode `own`: other people appear as "Person A", "Person B".
 - Scoped API tokens through the Atlassian API gateway, with the missing scope named in errors.
 - Profiles, and development builds that only use profiles that opted in.
+
+[0.1.0]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.0

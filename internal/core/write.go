@@ -3,8 +3,10 @@ package core
 import (
 	"context"
 	"encoding/json"
+
 	"errors"
 	"fmt"
+	adf "github.com/nyactl/go-adf"
 	"io"
 	"os"
 	"path/filepath"
@@ -72,6 +74,8 @@ type CreateInput struct {
 	Title    string
 	Markdown string
 	Publish  bool // publish right away instead of creating a draft
+	// Attach are local files to attach first, for images that name them.
+	Attach []string
 }
 
 // PlanCreate prepares a new page, a draft unless Publish is set.
@@ -103,7 +107,22 @@ func (s *Service) PlanCreate(ctx context.Context, in CreateInput) (*Plan, error)
 	case parent != nil && parent.SpaceID != space.ID:
 		return nil, fmt.Errorf("the parent page is in space %s, not %s", s.spaces[parent.SpaceID].Key, space.Key)
 	}
-	doc, err := s.toADF(in.Markdown)
+	ups, err := readUploads(in.Attach)
+	if err != nil {
+		return nil, err
+	}
+	c, _, err := s.newCodec(nil, "")
+	if err != nil {
+		return nil, err
+	}
+	for _, u := range ups {
+		c.uploads[u.name] = true
+	}
+	doc, err := c.parse(in.Markdown)
+	if err != nil {
+		return nil, err
+	}
+	added, _, err := partChanges(nil, doc)
 	if err != nil {
 		return nil, err
 	}
@@ -117,16 +136,45 @@ func (s *Service) PlanCreate(ctx context.Context, in CreateInput) (*Plan, error)
 	if in.Publish {
 		state = "a published page, visible to everyone who can see the space"
 	}
+	desc := fmt.Sprintf("Create %q %s, as %s, with this content:\n\n%s", title, where, state, indent(in.Markdown))
+	desc += partSummary(added, nil, ups)
 	return &Plan{
 		Kind:        Additive,
 		Target:      space.Key,
-		Description: fmt.Sprintf("Create %q %s, as %s, with this content:\n\n%s", title, where, state, indent(in.Markdown)),
+		Description: desc,
 		apply: func(ctx context.Context) (string, error) {
-			p, err := s.cc.CreatePage(ctx, space.ID, parentID, title, doc, in.Publish)
+			if len(ups) == 0 {
+				p, err := s.cc.CreatePage(ctx, space.ID, parentID, title, doc, in.Publish)
+				if err != nil {
+					return "", err
+				}
+				return fmt.Sprintf("Created page %s (%s): %s", p.ID, p.Status, s.pageURL(p)), nil
+			}
+			// Images refer to their files, which need the page: it is
+			// created as an empty draft, the files are attached, and then
+			// the draft gets its content, at its own version, and is
+			// published if asked.
+			p, err := s.cc.CreatePage(ctx, space.ID, parentID, title, json.RawMessage(`{"type":"doc","version":1,"content":[]}`), false)
 			if err != nil {
 				return "", err
 			}
-			return fmt.Sprintf("Created page %s (%s): %s", p.ID, p.Status, s.pageURL(p)), nil
+			full, err := s.uploadAll(ctx, p.ID, true, ups, doc)
+			if err != nil {
+				return "", fmt.Errorf("created draft %s, but %w", p.ID, err)
+			}
+			version := 1
+			if p.Version != nil && p.Version.Number > 0 {
+				version = p.Version.Number
+			}
+			if p, err = s.cc.UpdatePage(ctx, p.ID, "draft", title, full, version, ""); err != nil {
+				return "", fmt.Errorf("created draft %s and attached the files, but writing its content failed: %w", p.ID, err)
+			}
+			if in.Publish {
+				if p, err = s.cc.UpdatePage(ctx, p.ID, "current", title, full, version, ""); err != nil {
+					return "", fmt.Errorf("created draft %s with its files, but publishing it failed: %w", p.ID, err)
+				}
+			}
+			return fmt.Sprintf("Created page %s (%s) with %d attached files: %s", p.ID, p.Status, len(ups), s.pageURL(p)), nil
 		},
 	}, nil
 }
@@ -140,6 +188,8 @@ type UpdateInput struct {
 	// the page changed since, so nothing is overwritten unseen.
 	Version int
 	Message string // optional version comment
+	// Attach are local files to attach first, for images that name them.
+	Attach []string
 }
 
 // PlanUpdate prepares replacing a page's content; the plan shows the
@@ -171,11 +221,25 @@ func (s *Service) PlanUpdate(ctx context.Context, in UpdateInput) (*Plan, error)
 			return nil, err
 		}
 	}
-	doc, err := s.toADF(in.Markdown)
+	ups, err := readUploads(in.Attach)
 	if err != nil {
 		return nil, err
 	}
-	old := s.markdown(ctx, p.Body)
+	c, shown, err := s.newCodec(p.Body, p.ID)
+	if err != nil {
+		return nil, err
+	}
+	old, err := c.render(ctx, shown)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.loadAttachments(ctx, c, in.Markdown, ups); err != nil {
+		return nil, err
+	}
+	doc, err := c.parse(in.Markdown)
+	if err != nil {
+		return nil, err
+	}
 	newMD := strings.TrimSpace(in.Markdown)
 	if newMD == old {
 		if title == p.Title {
@@ -186,12 +250,20 @@ func (s *Service) PlanUpdate(ctx context.Context, in UpdateInput) (*Plan, error)
 			doc = json.RawMessage(p.Body.ADF.Value)
 		}
 	}
-	lost, err := s.lostParts(ctx, p.Body, doc)
+	lost, err := s.lostParts(ctx, p.Body, p.ID, doc)
 	if err != nil {
 		return nil, err
 	}
 	if len(lost) > 0 {
 		return nil, fmt.Errorf("page %s contains parts that cannot be edited as Markdown, and this update would delete them: %s. Change the page in Confluence instead, or change only its title", p.ID, strings.Join(lost, ", "))
+	}
+	var stored json.RawMessage
+	if p.Body != nil {
+		stored = json.RawMessage(p.Body.ADF.Value)
+	}
+	added, removed, err := partChanges(stored, doc)
+	if err != nil {
+		return nil, err
 	}
 	var desc strings.Builder
 	fmt.Fprintf(&desc, "Update page %q (%s) from version %d to %d.", s.people.Text(p.Title), p.ID, current, current+1)
@@ -201,11 +273,19 @@ func (s *Service) PlanUpdate(ctx context.Context, in UpdateInput) (*Plan, error)
 	if newMD != old {
 		fmt.Fprintf(&desc, "\n\nContent changes:\n\n%s", indent(lineDiff(old, newMD)))
 	}
+	desc.WriteString(partSummary(s.redacted(added), s.redacted(removed), ups))
 	return &Plan{
 		Kind:        Destructive,
 		Target:      p.ID,
 		Description: desc.String(),
 		apply: func(ctx context.Context) (string, error) {
+			doc := doc
+			if len(ups) > 0 {
+				// Attaching files adds no page version.
+				if doc, err = s.uploadAll(ctx, p.ID, false, ups, doc); err != nil {
+					return "", err
+				}
+			}
 			u, err := s.cc.UpdatePage(ctx, p.ID, "current", title, doc, current+1, in.Message)
 			if err != nil {
 				return "", err
@@ -284,19 +364,9 @@ var unsafeFileChars = regexp.MustCompile(`[^A-Za-z0-9._ -]+`)
 // PlanAttach prepares uploading a local file. The file is read now, so the
 // upload is exactly what the human approved.
 func (s *Service) PlanAttach(ctx context.Context, ref, path string) (*Plan, error) {
-	abs, err := filepath.Abs(path)
+	up, err := readUpload(path)
 	if err != nil {
 		return nil, err
-	}
-	st, err := os.Stat(abs)
-	if err != nil {
-		return nil, err
-	}
-	if !st.Mode().IsRegular() {
-		return nil, fmt.Errorf("%s is not a regular file", abs)
-	}
-	if st.Size() > maxUploadBytes {
-		return nil, fmt.Errorf("%s is %s; the limit is %s", abs, formatBytes(st.Size()), formatBytes(maxUploadBytes))
 	}
 	p, err := s.page(ctx, ref, false)
 	if err != nil {
@@ -305,34 +375,115 @@ func (s *Service) PlanAttach(ctx context.Context, ref, path string) (*Plan, erro
 	if err := s.writable(ctx, p); err != nil {
 		return nil, err
 	}
-	f, err := os.Open(abs) //nolint:gosec // G304: uploading the file the user named is the point; it is shown in the plan
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = f.Close() }()
-	data, err := io.ReadAll(io.LimitReader(f, maxUploadBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if len(data) > maxUploadBytes {
-		return nil, fmt.Errorf("%s grew beyond the limit of %s", abs, formatBytes(maxUploadBytes))
-	}
-	name := strings.Trim(unsafeFileChars.ReplaceAllString(filepath.Base(abs), "_"), ". ")
-	if name == "" {
-		name = "attachment"
-	}
+	name, data := up.name, up.data
 	return &Plan{
 		Kind:        Additive,
 		Target:      p.ID,
-		Description: fmt.Sprintf("Attach %s (%s, from %s) to %q (%s).", name, formatBytes(int64(len(data))), abs, s.people.Text(p.Title), p.ID),
+		Description: fmt.Sprintf("Attach %s to %q (%s).", up, s.people.Text(p.Title), p.ID),
 		apply: func(ctx context.Context) (string, error) {
-			a, err := s.cc.AddAttachment(ctx, p.ID, name, data)
+			a, err := s.cc.AddAttachment(ctx, p.ID, name, data, p.Status == "draft")
 			if err != nil {
 				return "", err
 			}
 			return fmt.Sprintf("Attached %s to page %s as attachment %s.", name, p.ID, a.ID), nil
 		},
 	}, nil
+}
+
+// upload is a local file read for a change, so the upload is exactly what
+// the human approved.
+type upload struct {
+	name, path string
+	data       []byte
+}
+
+func (u upload) String() string {
+	return fmt.Sprintf("%s (%s, from %s)", u.name, formatBytes(int64(len(u.data))), u.path)
+}
+
+func readUpload(path string) (upload, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return upload{}, err
+	}
+	st, err := os.Stat(abs)
+	if err != nil {
+		return upload{}, err
+	}
+	if !st.Mode().IsRegular() {
+		return upload{}, fmt.Errorf("%s is not a regular file", abs)
+	}
+	if st.Size() > maxUploadBytes {
+		return upload{}, fmt.Errorf("%s is %s; the limit is %s", abs, formatBytes(st.Size()), formatBytes(maxUploadBytes))
+	}
+	f, err := os.Open(abs) //nolint:gosec // G304: uploading the file the user named is the point; it is shown in the plan
+	if err != nil {
+		return upload{}, err
+	}
+	defer func() { _ = f.Close() }()
+	data, err := io.ReadAll(io.LimitReader(f, maxUploadBytes+1))
+	if err != nil {
+		return upload{}, err
+	}
+	if len(data) > maxUploadBytes {
+		return upload{}, fmt.Errorf("%s grew beyond the limit of %s", abs, formatBytes(maxUploadBytes))
+	}
+	name := strings.Trim(unsafeFileChars.ReplaceAllString(filepath.Base(abs), "_"), ". ")
+	if name == "" {
+		name = "attachment"
+	}
+	return upload{name: name, path: abs, data: data}, nil
+}
+
+func readUploads(paths []string) ([]upload, error) {
+	var out []upload
+	seen := map[string]bool{}
+	for _, p := range paths {
+		u, err := readUpload(p)
+		if err != nil {
+			return nil, err
+		}
+		if seen[u.name] {
+			return nil, fmt.Errorf("two files are named %s", u.name)
+		}
+		seen[u.name] = true
+		out = append(out, u)
+	}
+	return out, nil
+}
+
+// uploadAll attaches the files to a page and puts their file IDs into the
+// images of doc that refer to them.
+func (s *Service) uploadAll(ctx context.Context, pageID string, draft bool, ups []upload, doc json.RawMessage) (json.RawMessage, error) {
+	ids := map[string]string{}
+	for _, u := range ups {
+		a, err := s.cc.AddAttachment(ctx, pageID, u.name, u.data, draft)
+		if err != nil {
+			return nil, fmt.Errorf("attaching %s: %w", u.name, err)
+		}
+		if a.FileID == "" {
+			return nil, fmt.Errorf("attaching %s: Confluence returned no file ID", u.name)
+		}
+		ids[pendingID(u.name)] = a.FileID
+	}
+	n, err := decode(string(doc))
+	if err != nil {
+		return nil, err
+	}
+	var fill func(n *adf.Node)
+	fill = func(n *adf.Node) {
+		if n.Type == "media" {
+			if id, ok := ids[strAttr(n.Attrs, "id")]; ok {
+				n.Attrs["id"] = id
+				n.Attrs["collection"] = "contentId-" + pageID
+			}
+		}
+		for i := range n.Content {
+			fill(&n.Content[i])
+		}
+	}
+	fill(&n)
+	return json.Marshal(n)
 }
 
 func formatBytes(n int64) string {

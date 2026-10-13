@@ -20,6 +20,7 @@ import (
 	adf "github.com/nyactl/go-adf"
 
 	"github.com/nyactl/dok-for-confluence/internal/confluence"
+	"github.com/nyactl/dok-for-confluence/internal/macros"
 )
 
 // ErrNotFound is returned for missing pages and for pages outside the
@@ -34,6 +35,8 @@ type Settings struct {
 	Privacy people.Mode
 	Spaces  []string // allowed space keys
 	Parents []string // if set, writes only below these pages
+	Macros  []macros.Def
+	Fences  map[string]macros.Fence // fenced code that becomes a macro
 }
 
 // Service runs operations for one user.
@@ -43,7 +46,12 @@ type Service struct {
 	spaces  map[string]confluence.Space // by ID
 	keys    []string                    // allowed keys, in configured order
 	parents []string
-	now     func() time.Time
+	// macros are the allowed macros, by name and in order, and fences the
+	// fenced code languages that become one.
+	macros    map[string]macros.Def
+	macroList []macros.Def
+	fences    map[string]macros.Fence
+	now       func() time.Time
 
 	usersMu sync.Mutex
 	users   map[string]bool // account IDs looked up
@@ -64,6 +72,19 @@ func New(ctx context.Context, cc *confluence.Client, s Settings) (*Service, erro
 		parents: s.Parents,
 		now:     time.Now,
 		users:   map[string]bool{me.AccountID: true},
+		macros:  map[string]macros.Def{},
+		fences:  map[string]macros.Fence{},
+	}
+	for _, d := range s.Macros {
+		if d.Validate() == nil {
+			svc.macros[d.Name] = d
+			svc.macroList = append(svc.macroList, d)
+		}
+	}
+	for lang, f := range s.Fences {
+		if d, ok := svc.macros[f.Macro]; ok && d.CheckFence(f) == nil {
+			svc.fences[lang] = f
+		}
 	}
 	found, err := cc.SpacesByKey(ctx, s.Spaces)
 	if err != nil {
@@ -224,8 +245,10 @@ func (s *Service) redactText(n *adf.Node) {
 	if n.Text != "" {
 		n.Text = s.people.Text(n.Text)
 	}
-	if t, ok := n.Attrs["text"].(string); ok && n.Type != "mention" {
-		n.Attrs["text"] = s.people.Text(t)
+	for _, k := range []string{"text", "title", "alt"} {
+		if t, ok := n.Attrs[k].(string); ok && n.Type != "mention" {
+			n.Attrs[k] = s.people.Text(t)
+		}
 	}
 	for i := range n.Content {
 		s.redactText(&n.Content[i])

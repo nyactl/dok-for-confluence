@@ -53,6 +53,9 @@ var partNames = map[string]string{
 	"mark:indentation":     "indentation",
 }
 
+var plainTypes = map[string]bool{"paragraph": true, "heading": true, "bulletList": true, "orderedList": true, "codeBlock": true,
+	"blockquote": true, "rule": true, "table": true, "hardBreak": true, "mention": true}
+
 // skipped are counted through their parent or carry no content of their own.
 var skipped = map[string]bool{"doc": true, "text": true, "media": true, "caption": true, "layoutColumn": true,
 	"listItem": true, "taskItem": true, "blockTaskItem": true, "decisionItem": true, "tableRow": true, "tableCell": true, "tableHeader": true}
@@ -98,9 +101,10 @@ func partName(n adf.Node) string {
 	if skipped[n.Type] {
 		return ""
 	}
-	// The editor leaves empty paragraphs and headings, which Markdown cannot
-	// hold; dropping them is no loss.
-	if (n.Type == "paragraph" || n.Type == "heading") && len(n.Content) == 0 {
+	// Text structure has a Markdown form; whatever Markdown cannot hold in
+	// a place, such as a heading in a list, goes through a placeholder. The
+	// editor's empty paragraphs and headings are dropped, which is no loss.
+	if plainTypes[n.Type] {
 		return ""
 	}
 	if name, ok := partNames[n.Type]; ok {
@@ -136,7 +140,7 @@ func parts(raw []byte) (map[string]int, error) {
 
 // lostParts names the parts of the stored body that cannot be represented
 // in Markdown and that the new body would no longer contain.
-func (s *Service) lostParts(ctx context.Context, stored *confluence.Body, updated []byte) ([]string, error) {
+func (s *Service) lostParts(ctx context.Context, stored *confluence.Body, pageID string, updated []byte) ([]string, error) {
 	if stored == nil || strings.TrimSpace(stored.ADF.Value) == "" {
 		return nil, nil
 	}
@@ -146,9 +150,15 @@ func (s *Service) lostParts(ctx context.Context, stored *confluence.Body, update
 	}
 	// What a read followed by an unchanged write would keep.
 	kept := map[string]int{}
-	if rt, err := s.toADF(s.markdown(ctx, stored)); err == nil {
-		if kept, err = parts(rt); err != nil {
-			return nil, err
+	c, shown, err := s.newCodec(stored, pageID)
+	if err != nil {
+		return nil, err
+	}
+	if md, err := c.render(ctx, shown); err == nil {
+		if rt, err := c.parse(md); err == nil {
+			if kept, err = parts(rt); err != nil {
+				return nil, err
+			}
 		}
 	}
 	after, err := parts(updated)
@@ -192,4 +202,86 @@ func markMacros(nodes []adf.Node) []adf.Node {
 		out = append(out, markMacros(n.Content)...)
 	}
 	return out
+}
+
+// partChanges names the parts the updated body has more and fewer of than
+// the stored one; stored is nil for a new page.
+func partChanges(stored, updated []byte) (added, removed []string, err error) {
+	before := map[string]int{}
+	if len(stored) > 0 {
+		if before, err = parts(stored); err != nil {
+			return nil, nil, err
+		}
+	}
+	after, err := parts(updated)
+	if err != nil {
+		return nil, nil, err
+	}
+	count := func(name string, n int) string {
+		if n > 1 {
+			return fmt.Sprintf("%s (%d)", name, n)
+		}
+		return name
+	}
+	for _, name := range slices.Sorted(maps.Keys(after)) {
+		if n := after[name] - before[name]; n > 0 {
+			added = append(added, count(name, n))
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(before)) {
+		if n := before[name] - after[name]; n > 0 {
+			removed = append(removed, count(name, n))
+		}
+	}
+	return added, removed, nil
+}
+
+// partSummary states the parts and files a change adds or removes, for the
+// approval.
+func partSummary(added, removed []string, ups []upload) string {
+	var b strings.Builder
+	if len(added) > 0 {
+		b.WriteString("\n\nAdds: " + strings.Join(added, ", ") + ".")
+	}
+	if len(removed) > 0 {
+		b.WriteString("\n\nRemoves: " + strings.Join(removed, ", ") + ".")
+	}
+	for i, u := range ups {
+		if i == 0 {
+			b.WriteString("\n\nAttaches first:")
+		}
+		b.WriteString("\n    " + u.String())
+	}
+	return b.String()
+}
+
+func (s *Service) redacted(names []string) []string {
+	out := make([]string, len(names))
+	for i, n := range names {
+		out[i] = s.people.Text(n)
+	}
+	return out
+}
+
+// loadAttachments lets images refer to the files attached to the page, and
+// checks that files to attach do not exist yet.
+func (s *Service) loadAttachments(ctx context.Context, c *codec, md string, ups []upload) error {
+	if len(ups) == 0 && !strings.Contains(md, "attachment:") {
+		return nil
+	}
+	list, err := s.cc.Attachments(ctx, c.pageID, 250)
+	if err != nil {
+		return err
+	}
+	c.attachments = map[string]confluence.Attachment{}
+	for _, a := range list {
+		c.attachments[a.Title] = a
+	}
+	for _, u := range ups {
+		if _, exists := c.attachments[u.name]; exists {
+			return fmt.Errorf("the page already has an attachment named %s; refer to it as ![%s](attachment:%s) without attaching it again", u.name, u.name, u.name)
+		}
+		c.uploads[u.name] = true
+	}
+	return nil
 }

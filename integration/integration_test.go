@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/nyactl/dok-for-confluence/internal/config"
 	"github.com/nyactl/dok-for-confluence/internal/confluence"
 	"github.com/nyactl/dok-for-confluence/internal/core"
+	"github.com/nyactl/dok-for-confluence/internal/macros"
 )
 
 type site struct {
@@ -189,23 +191,38 @@ func TestIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{`(inline macro "Anchor" not shown)`, `> (macro "Table of Contents" not shown)`} {
+		for _, want := range []string{`"what":"inline macro \"Anchor\""`, `"what":"macro \"Table of Contents\""`, `"what":"status lozenge"`} {
 			if !strings.Contains(p.Body, want) {
 				t.Errorf("body lacks %q:\n%s", want, p.Body)
 			}
 		}
-		_, err = s.svc.PlanUpdate(ctx, core.UpdateInput{Page: created.ID, Markdown: p.Body + "\n\nmore", Version: p.Version})
-		if err == nil || !strings.Contains(err.Error(), `macro "Table of Contents"`) || !strings.Contains(err.Error(), `inline macro "Anchor"`) || !strings.Contains(err.Error(), "status lozenge") {
-			t.Fatalf("update that deletes macros: %v", err)
-		}
-		applied(t)(s.svc.PlanUpdate(ctx, core.UpdateInput{Page: created.ID, Title: "dok macros renamed " + s.run, Markdown: p.Body, Version: p.Version}))
+		// An edit around the placeholders keeps every part.
+		applied(t)(s.svc.PlanUpdate(ctx, core.UpdateInput{Page: created.ID, Markdown: p.Body + "\n\nmore", Version: p.Version}))
 		after, err := s.cc.Page(ctx, created.ID, false)
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, want := range []string{`"extensionKey":"toc"`, `"extensionKey":"anchor"`, `"type":"status"`} {
+		for _, want := range []string{`"extensionKey":"toc"`, `"extensionKey":"anchor"`, `"type":"status"`, `"text":"more"`} {
 			if !strings.Contains(after.Body.ADF.Value, want) {
-				t.Errorf("title change lost %s: %s", want, after.Body.ADF.Value)
+				t.Errorf("update lost %s: %s", want, after.Body.ADF.Value)
+			}
+		}
+		// A title change alone keeps the body as it is.
+		settle(t, s, created.ID)
+		before := stored(t, s, created.ID)
+		p, _ = s.svc.Page(ctx, created.ID)
+		applied(t)(s.svc.PlanUpdate(ctx, core.UpdateInput{Page: created.ID, Title: "dok macros renamed " + s.run, Markdown: p.Body, Version: p.Version}))
+		settle(t, s, created.ID)
+		renamed := stored(t, s, created.ID)
+		if len(renamed.Content) != len(before.Content) {
+			t.Fatalf("rename changed the body: %d parts, %d before", len(renamed.Content), len(before.Content))
+		}
+		// Confluence renames anchors after the page title itself.
+		anchorID := regexp.MustCompile(`"legacyAnchorId":\{"value":"[^"]*"\}`)
+		for i := range before.Content {
+			b, r := anchorID.ReplaceAll(macros.Fingerprint(before.Content[i]), nil), anchorID.ReplaceAll(macros.Fingerprint(renamed.Content[i]), nil)
+			if string(b) != string(r) {
+				t.Errorf("rename changed part %d:\nbefore: %s\nafter:  %s", i, macros.Fingerprint(before.Content[i]), macros.Fingerprint(renamed.Content[i]))
 			}
 		}
 	})

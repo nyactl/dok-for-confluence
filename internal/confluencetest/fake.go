@@ -53,8 +53,8 @@ type Comment struct {
 }
 
 type Attachment struct {
-	ID, PageID, Title, MediaType, AuthorID string
-	Data                                   []byte
+	ID, PageID, Title, MediaType, AuthorID, FileID string
+	Data                                           []byte
 }
 
 // Fake is the fake site.
@@ -340,7 +340,7 @@ func (f *Fake) pageRoute(w http.ResponseWriter, r *http.Request, p *Page, sub st
 		var out []any
 		for _, a := range f.Attachments {
 			if a.PageID == p.ID {
-				out = append(out, map[string]any{"id": a.ID, "title": a.Title, "mediaType": a.MediaType, "fileSize": len(a.Data),
+				out = append(out, map[string]any{"id": a.ID, "title": a.Title, "fileId": a.FileID, "mediaType": a.MediaType, "fileSize": len(a.Data),
 					"version": map[string]any{"number": 1, "authorId": a.AuthorID, "createdAt": "2026-10-03T09:00:00.000Z"}})
 			}
 		}
@@ -401,6 +401,12 @@ func (f *Fake) updatePage(w http.ResponseWriter, p *Page, data []byte, me *User)
 			return
 		}
 		p.Status = "current"
+	case p.Status == "draft" && in.Status == "draft":
+		// Changing a draft keeps its version number too.
+		if in.Version.Number != p.Version {
+			errJSON(w, 409, fmt.Sprintf("Version must be the draft's version. Current Version: [%d]. Provided version: [%d]", p.Version, in.Version.Number))
+			return
+		}
 	case in.Version.Number != p.Version+1:
 		errJSON(w, 409, fmt.Sprintf("Version must be incremented when updating a page. Current Version: [%d]. Provided version: [%d]", p.Version, in.Version.Number))
 		return
@@ -412,7 +418,9 @@ func (f *Fake) updatePage(w http.ResponseWriter, p *Page, data []byte, me *User)
 }
 
 func (f *Fake) upload(w http.ResponseWriter, r *http.Request, pageID string, me *User) {
-	if _, ok := f.Pages[pageID]; !ok {
+	// Like Confluence, the v1 API finds drafts only with status=draft.
+	pg, ok := f.Pages[pageID]
+	if !ok || (pg.Status == "draft") != (r.URL.Query().Get("status") == "draft") {
 		errJSON(w, 404, "Not Found")
 		return
 	}
@@ -426,9 +434,10 @@ func (f *Fake) upload(w http.ResponseWriter, r *http.Request, pageID string, me 
 		return
 	}
 	data, _ := io.ReadAll(file)
-	a := &Attachment{ID: "att" + f.id(), PageID: pageID, Title: hdr.Filename, MediaType: "text/plain", AuthorID: me.AccountID, Data: data}
+	id := f.id()
+	a := &Attachment{ID: "att" + id, PageID: pageID, Title: hdr.Filename, MediaType: "text/plain", AuthorID: me.AccountID, Data: data, FileID: "file-" + id}
 	f.Attachments = append(f.Attachments, a)
-	writeJSON(w, 200, map[string]any{"results": []any{map[string]string{"id": a.ID, "title": a.Title}}})
+	writeJSON(w, 200, map[string]any{"results": []any{map[string]any{"id": a.ID, "title": a.Title, "extensions": map[string]any{"fileId": a.FileID, "collectionName": "contentId-" + pageID}}}})
 }
 
 var (

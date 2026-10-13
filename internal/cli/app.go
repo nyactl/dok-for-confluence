@@ -171,7 +171,7 @@ func (a *App) service(cmd *cobra.Command) (*core.Service, *config.Config, error)
 		cloudID = cfg.CloudID
 	}
 	svc, err := core.New(cmd.Context(), a.client(cfg.Site, cfg.Email, token, cloudID),
-		core.Settings{Privacy: people.Mode(cfg.Privacy), Spaces: cfg.Spaces, Parents: cfg.Parents})
+		core.Settings{Privacy: people.Mode(cfg.Privacy), Spaces: cfg.Spaces, Parents: cfg.Parents, Macros: cfg.Macros.Allowed(), Fences: cfg.Macros.Fences})
 	if errors.Is(err, atlassian.ErrUnauthorized) {
 		if cfg.TokenExpiry != "" {
 			err = fmt.Errorf("%w (recorded expiry: %s)", err, cfg.TokenExpiry)

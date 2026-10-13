@@ -106,7 +106,7 @@ func (s *Service) pageView(ctx context.Context, p *confluence.Page) *PageView {
 		v.LastEditedBy = s.person(ctx, p.Version.AuthorID)
 		v.Updated = s.when(p.Version.CreatedAt)
 	}
-	v.Body = s.markdown(ctx, p.Body)
+	v.Body = s.pageMarkdown(ctx, p)
 	v.Title = s.people.Text(p.Title)
 	return v
 }

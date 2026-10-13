@@ -335,7 +335,7 @@ func (a *App) configCmd() *cobra.Command {
 			return err
 		},
 	}
-	cmd.AddCommand(show, privacy, profiles, devBuilds, a.spacesCmd(), a.parentsCmd())
+	cmd.AddCommand(show, privacy, profiles, devBuilds, a.spacesCmd(), a.parentsCmd(), a.macrosCmd())
 	return cmd
 }
 

@@ -16,7 +16,8 @@ func (a *App) addWriteCommands(root *cobra.Command) {
 		parent, _ := cmd.Flags().GetString("parent")
 		title, _ := cmd.Flags().GetString("title")
 		publish, _ := cmd.Flags().GetBool("publish")
-		p, err := svc.PlanCreate(cmd.Context(), core.CreateInput{Space: space, ParentID: parent, Title: title, Markdown: body, Publish: publish})
+		attach, _ := cmd.Flags().GetStringArray("attach")
+		p, err := svc.PlanCreate(cmd.Context(), core.CreateInput{Space: space, ParentID: parent, Title: title, Markdown: body, Publish: publish, Attach: attach})
 		return a.apply(cmd, svc, p, err)
 	})
 	create.Flags().String("space", "", "space key (optional with --parent)")
@@ -24,6 +25,7 @@ func (a *App) addWriteCommands(root *cobra.Command) {
 	create.Flags().String("title", "", "page title")
 	create.Flags().String("file", "", "Markdown file with the content, or - for stdin")
 	create.Flags().Bool("publish", false, "publish right away instead of creating a draft")
+	create.Flags().StringArray("attach", nil, "a file to attach first, for an image written as ![name](attachment:name); repeat for more")
 
 	update := svcCmd(a, "update <page>", "Replace a page's content with Markdown; fails if the page changed since --version", cobra.ExactArgs(1), func(cmd *cobra.Command, svc *core.Service, args []string) error {
 		body, err := a.fileArg(cmd)
@@ -33,13 +35,15 @@ func (a *App) addWriteCommands(root *cobra.Command) {
 		version, _ := cmd.Flags().GetInt("version")
 		title, _ := cmd.Flags().GetString("title")
 		message, _ := cmd.Flags().GetString("message")
-		p, err := svc.PlanUpdate(cmd.Context(), core.UpdateInput{Page: args[0], Markdown: body, Title: title, Version: version, Message: message})
+		attach, _ := cmd.Flags().GetStringArray("attach")
+		p, err := svc.PlanUpdate(cmd.Context(), core.UpdateInput{Page: args[0], Markdown: body, Title: title, Version: version, Message: message, Attach: attach})
 		return a.apply(cmd, svc, p, err)
 	})
 	update.Flags().String("file", "", "Markdown file with the new content, or - for stdin")
 	update.Flags().Int("version", 0, "the version your change is based on, as shown by `dok get`")
 	update.Flags().String("title", "", "new title (default: keep it)")
 	update.Flags().String("message", "", "version comment")
+	update.Flags().StringArray("attach", nil, "a file to attach first, for an image written as ![name](attachment:name); repeat for more")
 
 	publish := svcCmd(a, "publish <page>", "Publish a draft", cobra.ExactArgs(1), func(cmd *cobra.Command, svc *core.Service, args []string) error {
 		p, err := svc.PlanPublish(cmd.Context(), args[0])

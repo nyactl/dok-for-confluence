@@ -4,6 +4,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+## [0.1.2] - 2026-10-13
+
 ### Fixed
 
 - Updates no longer delete parts of a page that have no Markdown form, such as app macros, images, layouts, expands and status lozenges: such updates are refused and name the parts, and reading a page marks where macros are. A title change alone keeps the content as it is.
@@ -25,5 +27,6 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Scoped API tokens through the Atlassian API gateway, with the missing scope named in errors.
 - Profiles, and development builds that only use profiles that opted in.
 
+[0.1.2]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.2
 [0.1.1]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.1
 [0.1.0]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.0

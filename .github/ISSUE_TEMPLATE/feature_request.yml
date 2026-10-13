@@ -1,0 +1,17 @@
+name: Feature request
+description: Propose a command, option or MCP tool
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Say whether it only reads from Confluence or changes it, and how it fits the space allowlist and privacy mode.
+    validations:
+      required: true

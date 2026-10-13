@@ -1,0 +1,11 @@
+# Build output
+/dok
+/dok-dev
+*.test
+*.out
+/dist/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store

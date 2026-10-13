@@ -1,0 +1,58 @@
+version: 2
+
+builds:
+  - id: dok
+    main: ./cmd/dok
+    binary: dok
+    # The Keychain code uses cgo, so releases are built on macOS for macOS only.
+    env:
+      - CGO_ENABLED=1
+    goos:
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      # The tag keeps its "v", which marks the binary as a release build.
+      - -s -w -X main.version={{.Tag}}
+
+archives:
+  - id: default
+    name_template: "dok-for-confluence_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: "checksums.txt"
+
+signs:
+  - cmd: cosign
+    signature: "${artifact}.sigstore.json"
+    args:
+      - sign-blob
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - --yes
+    artifacts: checksum
+
+brews:
+  - name: dok-for-confluence
+    directory: Formula
+    skip_upload: auto
+    repository:
+      owner: nyactl
+      name: homebrew-tap
+      token: "{{ .Env.TAP_GITHUB_TOKEN }}"
+    homepage: "https://github.com/nyactl/dok-for-confluence"
+    description: "Confluence Cloud pages from the terminal or as an MCP server, limited to allowed spaces, every change approved"
+    license: "MIT"
+    install: |
+      bin.install "dok"
+    test: |
+      system "#{bin}/dok", "--version"
+
+# Release notes come from CHANGELOG.md via --release-notes (see the release
+# workflow); with a notes file, GoReleaser does not generate a changelog.

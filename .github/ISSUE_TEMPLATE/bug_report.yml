@@ -1,0 +1,41 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Remove tokens, site URLs and ticket content you are not allowed to share before posting.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: The command or MCP tool you used and the output you got.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `dok --version`.
+    validations:
+      required: true
+  - type: dropdown
+    id: interface
+    attributes:
+      label: Interface
+      options: [CLI, MCP server]
+    validations:
+      required: true
+  - type: dropdown
+    id: privacy
+    attributes:
+      label: Privacy mode
+      options: [own, off]
+    validations:
+      required: true

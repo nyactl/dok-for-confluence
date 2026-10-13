@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode"
 
 	"github.com/nyactl/approvekit/atlassian"
 	"github.com/nyactl/approvekit/keychain"
@@ -73,14 +74,17 @@ func setup(t *testing.T) *site {
 		opts = append(opts, atlassian.WithGateway(atlassian.Gateway, cfg.CloudID))
 	}
 	cc := confluence.New(cfg.Site, cfg.Email, token, "integration", opts...)
-	svc, err := core.New(context.Background(), cc, core.Settings{Privacy: people.Own, Spaces: []string{space}})
+	// The key is configured in other case: Confluence matches keys
+	// regardless of case, and so must dok, everywhere it uses them.
+	svc, err := core.New(context.Background(), cc, core.Settings{Privacy: people.Own, Spaces: []string{swapCase(space)}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	spaces := svc.Spaces()
-	if len(spaces) != 1 {
+	if len(spaces) != 1 || !strings.EqualFold(spaces[0].Key, space) {
 		t.Fatalf("test space %s is not visible: %+v", space, spaces)
 	}
+	space = spaces[0].Key
 	return &site{cfg: cfg, svc: svc, space: space, parent: os.Getenv("DOK_IT_PARENT"), run: time.Now().Format("20060102-150405")}
 }
 
@@ -234,4 +238,13 @@ func TestIntegration(t *testing.T) {
 			t.Errorf("err = %v", err)
 		}
 	})
+}
+
+func swapCase(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsUpper(r) {
+			return unicode.ToLower(r)
+		}
+		return unicode.ToUpper(r)
+	}, s)
 }

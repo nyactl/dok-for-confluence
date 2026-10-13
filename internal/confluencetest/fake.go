@@ -224,7 +224,8 @@ func (f *Fake) serve(w http.ResponseWriter, r *http.Request) {
 		keys := strings.Split(q.Get("keys"), ",")
 		var out []any
 		for _, s := range f.Spaces {
-			if slices.Contains(keys, s.Key) {
+			// Like Confluence, keys match regardless of case.
+			if slices.ContainsFunc(keys, func(k string) bool { return strings.EqualFold(k, s.Key) }) {
 				out = append(out, map[string]string{"id": s.ID, "key": s.Key, "name": s.Name, "type": "global", "status": "current", "homepageId": s.HomepageID})
 			}
 		}

@@ -123,6 +123,37 @@ func TestSearchStaysInAllowedSpaces(t *testing.T) {
 	assertNoPersonalData(t, hits)
 }
 
+func TestSpaceKeysMatchRegardlessOfCase(t *testing.T) {
+	t.Parallel()
+	f := fixture(t)
+	f.AddSpace(confluencetest.Space{ID: "30", Key: "MoSys", Name: "Mixed", HomepageID: "300"})
+	f.AddPage(confluencetest.Page{ID: "300", SpaceID: "30", Title: "Mixed home", AuthorID: "acc-me"})
+	cc := confluence.New(f.URL(), "me@example.com", "tok-me", "test", atlassian.WithTransport(f.Transport()))
+	s, err := New(context.Background(), cc, Settings{Privacy: people.Own, Spaces: []string{"doc", "MOSYS", "Doc", "GONE"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	for _, sp := range s.Spaces() {
+		keys = append(keys, sp.Key)
+	}
+	if strings.Join(keys, ",") != "DOC,MoSys" {
+		t.Errorf("spaces = %v", keys)
+	}
+	if strings.Join(s.keys, ",") != "DOC,MoSys,GONE" {
+		t.Errorf("keys = %v", s.keys)
+	}
+	if _, err := s.Page(context.Background(), "300"); err != nil {
+		t.Errorf("page in MoSys: %v", err)
+	}
+	if _, err := s.Search(context.Background(), "home", 0); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(f.CQL[0], `space in ("DOC","MoSys","GONE")`) {
+		t.Errorf("CQL = %s", f.CQL[0])
+	}
+}
+
 func TestNoSpacesConfigured(t *testing.T) {
 	t.Parallel()
 	f := fixture(t)

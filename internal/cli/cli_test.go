@@ -118,7 +118,7 @@ func TestLoginWithScopedTokenKeepsSpaces(t *testing.T) {
 	if _, _, err := e.runStdin(t, "tok-scoped\n", "auth", "login", "--site", e.fake.URL(), "--email", "me@example.com", "--expires", "", "--with-token"); err != nil {
 		t.Fatal(err)
 	}
-	if cfg, _ := config.Load(""); len(cfg.Spaces) != 1 || cfg.Spaces[0] != "DOC" {
+	if cfg, _ := config.Load(""); len(cfg.Spaces) != 1 || cfg.Spaces[0] != "doc" {
 		t.Errorf("spaces after login = %v", cfg.Spaces)
 	}
 }
@@ -139,6 +139,18 @@ func TestNoSpacesYet(t *testing.T) {
 	e := newEnv(t).loggedIn(t)
 	if _, _, err := e.run(t, "get", "101"); err == nil || !strings.Contains(err.Error(), "dok config spaces add") {
 		t.Errorf("err = %v", err)
+	}
+}
+
+func TestSpacesAddAndRemoveIgnoreCase(t *testing.T) {
+	e := newEnv(t).loggedIn(t)
+	for _, args := range [][]string{{"add", "MoSys"}, {"add", "doc"}, {"add", "DOC"}, {"remove", "mosys"}} {
+		if _, _, err := e.run(t, append([]string{"config", "spaces"}, args...)...); err != nil {
+			t.Fatal(args, err)
+		}
+	}
+	if cfg, _ := config.Load(""); strings.Join(cfg.Spaces, ",") != "DOC" {
+		t.Errorf("spaces = %v", cfg.Spaces)
 	}
 }
 

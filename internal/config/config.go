@@ -101,34 +101,38 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// NormalizeSpaceKey checks a space key. Keys of team spaces are upper case;
-// personal space keys start with ~ and keep their case.
+// NormalizeSpaceKey checks a space key. Keys keep their case; Confluence
+// matches them regardless of case.
 func NormalizeSpaceKey(key string) (string, error) {
 	key = strings.TrimSpace(key)
-	if !strings.HasPrefix(key, "~") {
-		key = strings.ToUpper(key)
-	}
 	if !spaceKeyRe.MatchString(key) {
 		return "", fmt.Errorf("invalid space key %q", key)
 	}
 	return key, nil
 }
 
-// AddSpace adds a space key once.
+// AddSpace adds a space key once, regardless of case; a new spelling
+// replaces the old one.
 func (c *Config) AddSpace(key string) {
-	if !slices.Contains(c.Spaces, key) {
-		c.Spaces = append(c.Spaces, key)
+	if i := c.spaceIndex(key); i >= 0 {
+		c.Spaces[i] = key
+		return
 	}
+	c.Spaces = append(c.Spaces, key)
 }
 
-// RemoveSpace removes a space key.
+// RemoveSpace removes a space key, regardless of case.
 func (c *Config) RemoveSpace(key string) bool {
-	i := slices.Index(c.Spaces, key)
+	i := c.spaceIndex(key)
 	if i < 0 {
 		return false
 	}
 	c.Spaces = slices.Delete(c.Spaces, i, i+1)
 	return true
+}
+
+func (c *Config) spaceIndex(key string) int {
+	return slices.IndexFunc(c.Spaces, func(k string) bool { return strings.EqualFold(k, key) })
 }
 
 // ExpiryWarning returns a message when the recorded token expiry is within

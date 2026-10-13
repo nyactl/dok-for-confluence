@@ -4,6 +4,12 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+## [0.1.1] - 2026-10-13
+
+### Fixed
+
+- Space keys match regardless of case, as in Confluence: keys are no longer turned into upper case, so spaces with mixed-case keys can be allowed, and keys configured in other case still find their space.
+
 ## [0.1.0] - 2026-10-13
 
 ### Added
@@ -15,4 +21,5 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Scoped API tokens through the Atlassian API gateway, with the missing scope named in errors.
 - Profiles, and development builds that only use profiles that opted in.
 
+[0.1.1]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.1
 [0.1.0]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.0

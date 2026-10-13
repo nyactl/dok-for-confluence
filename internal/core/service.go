@@ -69,9 +69,17 @@ func New(ctx context.Context, cc *confluence.Client, s Settings) (*Service, erro
 	if err != nil {
 		return nil, err
 	}
-	for _, sp := range found {
-		if slices.Contains(s.Spaces, sp.Key) {
-			svc.spaces[sp.ID] = sp
+	// Confluence matches keys regardless of case and returns each space's
+	// own spelling, which dok uses from here on, also in search queries.
+	svc.keys = nil
+	for _, k := range s.Spaces {
+		i := slices.IndexFunc(found, func(sp confluence.Space) bool { return strings.EqualFold(sp.Key, k) })
+		if i >= 0 {
+			k = found[i].Key
+			svc.spaces[found[i].ID] = found[i]
+		}
+		if !slices.ContainsFunc(svc.keys, func(have string) bool { return strings.EqualFold(have, k) }) {
+			svc.keys = append(svc.keys, k)
 		}
 	}
 	return svc, nil
@@ -85,7 +93,7 @@ func (s *Service) Site() string { return s.cc.Site() }
 
 func (s *Service) spaceByKey(key string) (confluence.Space, bool) {
 	for _, sp := range s.spaces {
-		if sp.Key == key {
+		if strings.EqualFold(sp.Key, key) {
 			return sp, true
 		}
 	}

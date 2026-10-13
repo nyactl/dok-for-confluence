@@ -57,7 +57,17 @@ var partNames = map[string]string{
 var skipped = map[string]bool{"doc": true, "text": true, "media": true, "caption": true, "layoutColumn": true,
 	"listItem": true, "taskItem": true, "blockTaskItem": true, "decisionItem": true, "tableRow": true, "tableCell": true, "tableHeader": true}
 
+// macroTitle names a macro. Confluence's own embeds, such as whiteboards,
+// are titled "native-embed:<kind>".
 func macroTitle(n adf.Node) string {
+	t := rawMacroTitle(n)
+	if kind, ok := strings.CutPrefix(t, "native-embed:"); ok {
+		return "embedded " + kind
+	}
+	return t
+}
+
+func rawMacroTitle(n adf.Node) string {
 	if p, ok := n.Attrs["parameters"].(map[string]any); ok {
 		if t, ok := p["extensionTitle"].(string); ok && t != "" {
 			return t

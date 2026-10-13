@@ -12,6 +12,7 @@ import (
 
 	"github.com/nyactl/approvekit/atlassian"
 	"github.com/nyactl/approvekit/people"
+	adf "github.com/nyactl/go-adf"
 
 	"github.com/nyactl/dok-for-confluence/internal/confluence"
 	"github.com/nyactl/dok-for-confluence/internal/confluencetest"
@@ -382,6 +383,24 @@ func TestUpdateKeepsMacros(t *testing.T) {
 	_ = json.Unmarshal(pg.Body, &got)
 	if pg.Title != "Macros renamed" || !reflect.DeepEqual(want, got) {
 		t.Errorf("title-only update changed the body: %s", pg.Body)
+	}
+}
+
+func TestMacroTitle(t *testing.T) {
+	t.Parallel()
+	for _, c := range []struct {
+		attrs map[string]any
+		want  string
+	}{
+		{map[string]any{"extensionKey": "toc", "parameters": map[string]any{"macroMetadata": map[string]any{"title": "Table of Contents"}}}, "Table of Contents"},
+		{map[string]any{"extensionKey": "native-embed:whiteboard", "parameters": map[string]any{"macroMetadata": map[string]any{"title": "native-embed:whiteboard"}}}, "embedded whiteboard"},
+		{map[string]any{"extensionKey": "app/env/static/diagram", "text": "Diagram", "parameters": map[string]any{"extensionTitle": "Mermaid"}}, "Mermaid"},
+		{map[string]any{"extensionKey": "app/env/static/diagram"}, "diagram"},
+		{nil, ""},
+	} {
+		if got := macroTitle(adf.Node{Type: "extension", Attrs: c.attrs}); got != c.want {
+			t.Errorf("macroTitle(%v) = %q, want %q", c.attrs, got, c.want)
+		}
 	}
 }
 

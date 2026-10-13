@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -176,8 +177,21 @@ func (s *Service) PlanUpdate(ctx context.Context, in UpdateInput) (*Plan, error)
 	}
 	old := s.markdown(ctx, p.Body)
 	newMD := strings.TrimSpace(in.Markdown)
-	if newMD == old && title == p.Title {
-		return nil, errors.New("nothing would change")
+	if newMD == old {
+		if title == p.Title {
+			return nil, errors.New("nothing would change")
+		}
+		if p.Body != nil {
+			// Only the title changes: the stored body is kept exactly.
+			doc = json.RawMessage(p.Body.ADF.Value)
+		}
+	}
+	lost, err := s.lostParts(ctx, p.Body, doc)
+	if err != nil {
+		return nil, err
+	}
+	if len(lost) > 0 {
+		return nil, fmt.Errorf("page %s contains parts that cannot be edited as Markdown, and this update would delete them: %s. Change the page in Confluence instead, or change only its title", p.ID, strings.Join(lost, ", "))
 	}
 	var desc strings.Builder
 	fmt.Fprintf(&desc, "Update page %q (%s) from version %d to %d.", s.people.Text(p.Title), p.ID, current, current+1)

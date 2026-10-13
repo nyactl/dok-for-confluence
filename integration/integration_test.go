@@ -28,6 +28,7 @@ import (
 
 type site struct {
 	cfg    *config.Config
+	cc     *confluence.Client
 	svc    *core.Service
 	space  string
 	parent string
@@ -85,7 +86,7 @@ func setup(t *testing.T) *site {
 		t.Fatalf("test space %s is not visible: %+v", space, spaces)
 	}
 	space = spaces[0].Key
-	return &site{cfg: cfg, svc: svc, space: space, parent: os.Getenv("DOK_IT_PARENT"), run: time.Now().Format("20060102-150405")}
+	return &site{cfg: cfg, cc: cc, svc: svc, space: space, parent: os.Getenv("DOK_IT_PARENT"), run: time.Now().Format("20060102-150405")}
 }
 
 func applied(t *testing.T) func(*core.Plan, error) string {
@@ -173,6 +174,42 @@ func TestIntegration(t *testing.T) {
 		}
 	})
 
+	t.Run("macros are kept", func(t *testing.T) {
+		// Built-in macros, written the way the Confluence editor stores them.
+		doc := []byte(`{"type":"doc","version":1,"content":[
+{"type":"paragraph","content":[{"type":"text","text":"Macros "},{"type":"inlineExtension","attrs":{"extensionType":"com.atlassian.confluence.macro.core","extensionKey":"anchor","parameters":{"macroParams":{"":{"value":"top"}},"macroMetadata":{"title":"Anchor"}}}}]},
+{"type":"extension","attrs":{"layout":"default","extensionType":"com.atlassian.confluence.macro.core","extensionKey":"toc","parameters":{"macroParams":{},"macroMetadata":{"title":"Table of Contents"}}}},
+{"type":"paragraph","content":[{"type":"status","attrs":{"text":"DONE","color":"green","localId":"1"}}]}]}`)
+		spaceID := s.svc.Spaces()[0].ID
+		created, err := s.cc.CreatePage(ctx, spaceID, s.parent, "dok macros "+s.run, doc, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, err := s.svc.Page(ctx, created.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{`(inline macro "Anchor" not shown)`, `> (macro "Table of Contents" not shown)`} {
+			if !strings.Contains(p.Body, want) {
+				t.Errorf("body lacks %q:\n%s", want, p.Body)
+			}
+		}
+		_, err = s.svc.PlanUpdate(ctx, core.UpdateInput{Page: created.ID, Markdown: p.Body + "\n\nmore", Version: p.Version})
+		if err == nil || !strings.Contains(err.Error(), `macro "Table of Contents"`) || !strings.Contains(err.Error(), `inline macro "Anchor"`) || !strings.Contains(err.Error(), "status lozenge") {
+			t.Fatalf("update that deletes macros: %v", err)
+		}
+		applied(t)(s.svc.PlanUpdate(ctx, core.UpdateInput{Page: created.ID, Title: "dok macros renamed " + s.run, Markdown: p.Body, Version: p.Version}))
+		after, err := s.cc.Page(ctx, created.ID, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{`"extensionKey":"toc"`, `"extensionKey":"anchor"`, `"type":"status"`} {
+			if !strings.Contains(after.Body.ADF.Value, want) {
+				t.Errorf("title change lost %s: %s", want, after.Body.ADF.Value)
+			}
+		}
+	})
+
 	t.Run("comment with mention of me", func(t *testing.T) {
 		applied(t)(s.svc.PlanComment(ctx, draftID, "Reviewed, @[Me]."))
 		cs, err := s.svc.Comments(ctx, draftID, 10)
@@ -212,8 +249,9 @@ func TestIntegration(t *testing.T) {
 	})
 
 	t.Run("search", func(t *testing.T) {
-		// The search index catches up within seconds to a minute.
-		deadline := time.Now().Add(90 * time.Second)
+		// The search index usually catches up within a minute, but can lag
+		// several minutes behind.
+		deadline := time.Now().Add(10 * time.Minute)
 		for {
 			hits, err := s.svc.Search(ctx, s.run, 10)
 			if err != nil {

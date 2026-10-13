@@ -193,6 +193,7 @@ func (s *Service) markdown(ctx context.Context, b *confluence.Body) string {
 	if err := json.Unmarshal([]byte(b.ADF.Value), &doc); err != nil {
 		return "(content could not be converted)"
 	}
+	doc.Content = markMacros(doc.Content)
 	s.learnMentions(ctx, doc)
 	s.redactText(&doc)
 	raw, err := json.Marshal(doc)

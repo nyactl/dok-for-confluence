@@ -75,7 +75,7 @@ dok comment 123456 --body "Updated the rollback steps, @[Person A]"
 dok attach 123456 ./diagram.svg
 ```
 
-Every change shows exactly what will happen, a line diff for updates, and asks for confirmation. Updates and publishing need the page ID typed; other changes a `y`. Add `--json` to read commands for machine-readable output.
+Every change shows exactly what will happen, a line diff for updates, and asks for confirmation. Parts of a page that have no Markdown form, such as app macros, images, layouts, expands or status lozenges, are protected: macros show up as `(macro "Title" not shown)` when reading, and an update that would delete any of these parts is refused with their names, so change such pages in Confluence. A title change alone keeps the content as it is. Updates and publishing need the page ID typed; other changes a `y`. Add `--json` to read commands for machine-readable output.
 
 ## Use with an MCP client
 

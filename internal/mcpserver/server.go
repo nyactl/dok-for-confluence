@@ -150,7 +150,7 @@ func (s *server) registerReads(srv *mcp.Server) {
 		func(ctx context.Context, _ *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, any, error) {
 			return text(render.Spaces(s.svc.Spaces()))
 		})
-	add(srv, "get_page", "Read a page as Markdown, with its version.", readOnly(),
+	add(srv, "get_page", "Read a page as Markdown, with its version. App macros have no Markdown form and appear as (macro \"Title\" not shown).", readOnly(),
 		func(ctx context.Context, _ *mcp.CallToolRequest, in pageInput) (*mcp.CallToolResult, any, error) {
 			p, err := s.svc.Page(ctx, in.Page)
 			if err != nil {
@@ -218,7 +218,7 @@ func (s *server) registerWrites(srv *mcp.Server) {
 			p, err := s.svc.PlanCreate(ctx, core.CreateInput{Space: in.Space, ParentID: in.Parent, Title: in.Title, Markdown: in.Markdown, Publish: in.Publish})
 			return s.approveThenApply(ctx, req, "create_page", in, p, err)
 		})
-	add(srv, "update_page", "Replace a page's content. Pass the version from get_page; the update fails if the page changed since. The user approves the shown difference first.", writeAnnotations(core.Destructive),
+	add(srv, "update_page", "Replace a page's content. Pass the version from get_page; the update fails if the page changed since. The user approves the shown difference first. Updates that would delete parts without a Markdown form (macros, images, layouts, status lozenges and similar) are refused; a title change alone keeps the content as it is.", writeAnnotations(core.Destructive),
 		func(ctx context.Context, req *mcp.CallToolRequest, in updateInput) (*mcp.CallToolResult, any, error) {
 			p, err := s.svc.PlanUpdate(ctx, core.UpdateInput{Page: in.Page, Markdown: in.Markdown, Title: in.Title, Version: in.Version, Message: in.Message})
 			return s.approveThenApply(ctx, req, "update_page", in, p, err)

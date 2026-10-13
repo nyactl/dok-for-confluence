@@ -4,6 +4,10 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+### Fixed
+
+- Updates no longer delete parts of a page that have no Markdown form, such as app macros, images, layouts, expands and status lozenges: such updates are refused and name the parts, and reading a page marks where macros are. A title change alone keeps the content as it is.
+
 ## [0.1.1] - 2026-10-13
 
 ### Fixed

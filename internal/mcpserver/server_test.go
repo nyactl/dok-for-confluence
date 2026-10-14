@@ -16,6 +16,7 @@ import (
 	"github.com/nyactl/dok-for-confluence/internal/confluence"
 	"github.com/nyactl/dok-for-confluence/internal/confluencetest"
 	"github.com/nyactl/dok-for-confluence/internal/core"
+	"github.com/nyactl/dok-for-confluence/internal/macros"
 )
 
 func site(t *testing.T) *confluencetest.Fake {
@@ -38,10 +39,16 @@ type harness struct {
 
 func connect(t *testing.T, writes bool, answer string) *harness {
 	t.Helper()
+	return connectWith(t, writes, answer, core.Settings{})
+}
+
+func connectWith(t *testing.T, writes bool, answer string, settings core.Settings) *harness {
+	t.Helper()
 	ctx := context.Background()
 	h := &harness{fake: site(t)}
 	cc := confluence.New(h.fake.URL(), "me@example.com", "tok-me", "test", atlassian.WithTransport(h.fake.Transport()))
-	svc, err := core.New(ctx, cc, core.Settings{Privacy: people.Own, Spaces: []string{"DOC"}})
+	settings.Privacy, settings.Spaces = people.Own, []string{"DOC"}
+	svc, err := core.New(ctx, cc, settings)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +108,7 @@ var writeTools = []string{"add_comment", "attach_file", "create_page", "publish_
 func TestReadOnlyByDefault(t *testing.T) {
 	t.Parallel()
 	tools := toolMap(t, connect(t, false, ""))
-	if len(tools) != 7 {
+	if len(tools) != 8 {
 		t.Errorf("got %d read tools", len(tools))
 	}
 	for name, tool := range tools {
@@ -227,5 +234,27 @@ func TestCheckUploadPath(t *testing.T) {
 		if err := checkUploadPath(p); err == nil {
 			t.Errorf("%s was accepted", p)
 		}
+	}
+}
+
+func TestMacrosAndPlaceholders(t *testing.T) {
+	t.Parallel()
+	h := connectWith(t, true, "approve", core.Settings{Macros: []macros.Def{macros.Builtin()["toc"]}})
+	out, isErr := h.call(t, "list_macros", map[string]any{})
+	if isErr || !strings.Contains(out, "## toc (Table of Contents)") || !strings.Contains(out, "- maxLevel (number)") || !strings.Contains(out, "```macro:toc\nmaxLevel: 2\nminLevel: 2\n```") {
+		t.Errorf("list_macros:\n%s", out)
+	}
+	if out, isErr := h.call(t, "create_page", map[string]any{"space": "DOC", "title": "x", "markdown": "![a](attachment:a.png)", "attach": []string{"relative.png"}}); !isErr || !strings.Contains(out, "absolute path") {
+		t.Errorf("relative attach path: %s", out)
+	}
+	if out, isErr := h.call(t, "create_page", map[string]any{"space": "DOC", "title": "TOC", "markdown": "## A\n\n```macro:toc\nmaxLevel: 2\n```"}); isErr || !strings.Contains(out, "Created page") {
+		t.Fatalf("create_page: %s", out)
+	}
+	if !strings.Contains(h.asked[len(h.asked)-1], `Adds: macro "Table of Contents".`) {
+		t.Errorf("approval: %s", h.asked[len(h.asked)-1])
+	}
+	tools := toolMap(t, h)
+	if !strings.Contains(tools["get_page"].Description, "placeholders") {
+		t.Errorf("get_page description: %s", tools["get_page"].Description)
 	}
 }

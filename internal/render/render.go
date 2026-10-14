@@ -133,3 +133,33 @@ func orDash(s string) string {
 	}
 	return s
 }
+
+// Macros lists the allowed macros.
+func Macros(ms []core.MacroView) string {
+	if len(ms) == 0 {
+		return "No macros are allowed; the user can allow some with `dok config macros`.\n"
+	}
+	var b strings.Builder
+	for _, m := range ms {
+		line(&b, "## %s (%s)", m.Name, m.Title)
+		line(&b, "")
+		if len(m.Params) == 0 {
+			line(&b, "No parameters.")
+		}
+		for _, p := range m.Params {
+			kind := p.Kind
+			if len(p.Values) > 0 {
+				kind += ": " + strings.Join(p.Values, ", ")
+			}
+			line(&b, "- %s (%s)", p.Name, kind)
+		}
+		if m.Fence != "" {
+			line(&b, "")
+			line(&b, "Fenced %s code becomes this macro.", m.Fence)
+		}
+		line(&b, "")
+		line(&b, "%s", m.Example)
+		line(&b, "")
+	}
+	return b.String()
+}

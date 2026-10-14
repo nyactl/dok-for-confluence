@@ -48,6 +48,7 @@ func instructions(site string, mode people.Mode, spaces []core.SpaceView, writes
 		b.WriteString("People other than the user appear as stable labels such as \"Person A\"; the user is \"Me\". Do not try to find out who a label is.\n\n")
 	}
 	b.WriteString("Pages are Markdown. Mentions appear as @[label]; to mention someone in text you write, use the same form. Only people already shown in this session can be mentioned.\n\n")
+	b.WriteString(syntaxHelp + "\n\n")
 	if writes {
 		b.WriteString("Every change is shown to the user for approval before it happens. New pages are drafts unless publishing is requested. ")
 		b.WriteString("To change a page, read it first with get_page and pass its version to update_page; the update fails if the page changed in the meantime. ")
@@ -57,6 +58,16 @@ func instructions(site string, mode people.Mode, spaces []core.SpaceView, writes
 	}
 	return b.String()
 }
+
+// syntaxHelp explains the Markdown forms of pages beyond CommonMark.
+const syntaxHelp = "Beyond CommonMark, pages use these forms: expands as <details><summary>Title</summary> ... </details>; " +
+	"column layouts as a ````columns block holding a ```column 50 block per column (the outer fence longer than the inner ones); " +
+	"smart links as <card:URL>, and <card-block:URL> or <card-embed:URL> on a line of their own; " +
+	"colored text as {color:#RRGGBB}text{/color} and {highlight:#RRGGBB}text{/highlight}; " +
+	"images on a line of their own as ![alt](https://...) or ![name](attachment:name \"center 600px\"), attaching new files with the change. " +
+	"Allowed macros appear as ```macro:NAME blocks of name: value lines; list_macros lists them. " +
+	"Everything else, such as other macros, panels or status lozenges, appears as a ```adf block or `adf:` code holding a placeholder like {\"type\":\"kept\",...}: " +
+	"keep it exactly as it is to keep that part, or remove it with its fences to delete the part. Do not write other JSON."
 
 // New builds the MCP server.
 func New(svc *core.Service, opts Options) *mcp.Server {
@@ -112,19 +123,21 @@ type searchInput struct {
 }
 
 type createInput struct {
-	Space    string `json:"space,omitempty" jsonschema:"Space key; optional when parent is given"`
-	Parent   string `json:"parent,omitempty" jsonschema:"Parent page ID or URL"`
-	Title    string `json:"title" jsonschema:"Page title"`
-	Markdown string `json:"markdown" jsonschema:"Page content in Markdown"`
-	Publish  bool   `json:"publish,omitempty" jsonschema:"Publish right away instead of creating a draft; only when the user asked for it"`
+	Space    string   `json:"space,omitempty" jsonschema:"Space key; optional when parent is given"`
+	Parent   string   `json:"parent,omitempty" jsonschema:"Parent page ID or URL"`
+	Title    string   `json:"title" jsonschema:"Page title"`
+	Markdown string   `json:"markdown" jsonschema:"Page content in Markdown"`
+	Publish  bool     `json:"publish,omitempty" jsonschema:"Publish right away instead of creating a draft; only when the user asked for it"`
+	Attach   []string `json:"attach,omitempty" jsonschema:"Absolute paths of local files the user named, attached first for images written as ![name](attachment:name)"`
 }
 
 type updateInput struct {
-	Page     string `json:"page" jsonschema:"Page ID or page URL"`
-	Markdown string `json:"markdown" jsonschema:"The complete new page content in Markdown"`
-	Version  int    `json:"version" jsonschema:"The page version the change is based on, as returned by get_page"`
-	Title    string `json:"title,omitempty" jsonschema:"New title; omit to keep it"`
-	Message  string `json:"message,omitempty" jsonschema:"Version comment"`
+	Page     string   `json:"page" jsonschema:"Page ID or page URL"`
+	Markdown string   `json:"markdown" jsonschema:"The complete new page content in Markdown"`
+	Version  int      `json:"version" jsonschema:"The page version the change is based on, as returned by get_page"`
+	Title    string   `json:"title,omitempty" jsonschema:"New title; omit to keep it"`
+	Message  string   `json:"message,omitempty" jsonschema:"Version comment"`
+	Attach   []string `json:"attach,omitempty" jsonschema:"Absolute paths of local files the user named, attached first for images written as ![name](attachment:name)"`
 }
 
 type commentInput struct {
@@ -150,7 +163,11 @@ func (s *server) registerReads(srv *mcp.Server) {
 		func(ctx context.Context, _ *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, any, error) {
 			return text(render.Spaces(s.svc.Spaces()))
 		})
-	add(srv, "get_page", "Read a page as Markdown, with its version. App macros have no Markdown form and appear as (macro \"Title\" not shown).", readOnly(),
+	add(srv, "list_macros", "List the macros pages may contain as ```macro:NAME blocks, with their parameters and an example.", readOnly(),
+		func(ctx context.Context, _ *mcp.CallToolRequest, _ emptyInput) (*mcp.CallToolResult, any, error) {
+			return text(render.Macros(s.svc.Macros()))
+		})
+	add(srv, "get_page", "Read a page as Markdown, with its version. Parts without a Markdown form appear as placeholders to keep as they are; see the server instructions for the forms.", readOnly(),
 		func(ctx context.Context, _ *mcp.CallToolRequest, in pageInput) (*mcp.CallToolResult, any, error) {
 			p, err := s.svc.Page(ctx, in.Page)
 			if err != nil {
@@ -215,12 +232,22 @@ func (s *server) approveThenApply(ctx context.Context, req *mcp.CallToolRequest,
 func (s *server) registerWrites(srv *mcp.Server) {
 	add(srv, "create_page", "Create a page from Markdown, as a draft unless publish is set. The user approves it first.", writeAnnotations(core.Additive),
 		func(ctx context.Context, req *mcp.CallToolRequest, in createInput) (*mcp.CallToolResult, any, error) {
-			p, err := s.svc.PlanCreate(ctx, core.CreateInput{Space: in.Space, ParentID: in.Parent, Title: in.Title, Markdown: in.Markdown, Publish: in.Publish})
+			for _, path := range in.Attach {
+				if err := checkUploadPath(path); err != nil {
+					return nil, nil, err
+				}
+			}
+			p, err := s.svc.PlanCreate(ctx, core.CreateInput{Space: in.Space, ParentID: in.Parent, Title: in.Title, Markdown: in.Markdown, Publish: in.Publish, Attach: in.Attach})
 			return s.approveThenApply(ctx, req, "create_page", in, p, err)
 		})
-	add(srv, "update_page", "Replace a page's content. Pass the version from get_page; the update fails if the page changed since. The user approves the shown difference first. Updates that would delete parts without a Markdown form (macros, images, layouts, status lozenges and similar) are refused; a title change alone keeps the content as it is.", writeAnnotations(core.Destructive),
+	add(srv, "update_page", "Replace a page's content with the complete new Markdown. Pass the version from get_page; the update fails if the page changed since. Keep placeholders as they are to keep those parts. The user approves the shown difference, and the parts added or removed, first.", writeAnnotations(core.Destructive),
 		func(ctx context.Context, req *mcp.CallToolRequest, in updateInput) (*mcp.CallToolResult, any, error) {
-			p, err := s.svc.PlanUpdate(ctx, core.UpdateInput{Page: in.Page, Markdown: in.Markdown, Title: in.Title, Version: in.Version, Message: in.Message})
+			for _, path := range in.Attach {
+				if err := checkUploadPath(path); err != nil {
+					return nil, nil, err
+				}
+			}
+			p, err := s.svc.PlanUpdate(ctx, core.UpdateInput{Page: in.Page, Markdown: in.Markdown, Title: in.Title, Version: in.Version, Message: in.Message, Attach: in.Attach})
 			return s.approveThenApply(ctx, req, "update_page", in, p, err)
 		})
 	add(srv, "publish_page", "Publish a draft. The user approves it first.", writeAnnotations(core.Destructive),

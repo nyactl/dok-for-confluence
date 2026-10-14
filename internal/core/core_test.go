@@ -6,7 +6,6 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -343,49 +342,6 @@ const macroPage = `{"type":"doc","version":1,"content":[
  "content":[{"type":"paragraph","content":[{"type":"text","text":"Owner: team"}]}]},
 {"type":"mediaSingle","attrs":{"layout":"center"},"content":[{"type":"media","attrs":{"id":"m-1","type":"file","collection":"c"}}]}]}`
 
-func TestUpdateKeepsMacros(t *testing.T) {
-	t.Parallel()
-	f := fixture(t)
-	pg := f.AddPage(confluencetest.Page{ID: "110", SpaceID: "10", ParentID: "100", Title: "Macros", AuthorID: "acc-me", Body: json.RawMessage(macroPage)})
-	s := service(t, f, people.Own)
-	ctx := context.Background()
-
-	v, err := s.Page(ctx, "110")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, want := range []string{`Intro (inline macro "Anchor" not shown)`, `> (macro "Diagram" not shown)`, `> (macro "Page Properties" not shown)`, "Owner: team"} {
-		if !strings.Contains(v.Body, want) {
-			t.Errorf("body lacks %q:\n%s", want, v.Body)
-		}
-	}
-
-	_, err = s.PlanUpdate(ctx, UpdateInput{Page: "110", Version: v.Version, Markdown: strings.Replace(v.Body, "Intro", "Introduction", 1)})
-	if err == nil {
-		t.Fatal("update that deletes macros was accepted")
-	}
-	for _, want := range []string{`inline macro "Anchor"`, `macro "Diagram"`, `macro "Page Properties"`, "image or file", "Change the page in Confluence"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("error lacks %q: %v", want, err)
-		}
-	}
-
-	// A title change alone keeps the stored body as it is.
-	plan, err := s.PlanUpdate(ctx, UpdateInput{Page: "110", Version: v.Version, Title: "Macros renamed", Markdown: v.Body})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := plan.Apply(ctx); err != nil {
-		t.Fatal(err)
-	}
-	var want, got any
-	_ = json.Unmarshal([]byte(macroPage), &want)
-	_ = json.Unmarshal(pg.Body, &got)
-	if pg.Title != "Macros renamed" || !reflect.DeepEqual(want, got) {
-		t.Errorf("title-only update changed the body: %s", pg.Body)
-	}
-}
-
 func TestMacroTitle(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -434,21 +390,5 @@ func TestUpdateIgnoresEmptyParagraphs(t *testing.T) {
 	}
 	if _, err := s.PlanUpdate(ctx, UpdateInput{Page: "111", Version: v.Version, Markdown: v.Body + "\n\nmore"}); err != nil {
 		t.Fatal(err)
-	}
-}
-
-func TestUpdateKeepsHeadingsInLists(t *testing.T) {
-	t.Parallel()
-	f := fixture(t)
-	f.AddPage(confluencetest.Page{ID: "112", SpaceID: "10", ParentID: "100", Title: "List", AuthorID: "acc-me",
-		Body: json.RawMessage(`{"type":"doc","version":1,"content":[{"type":"bulletList","content":[{"type":"listItem","content":[{"type":"heading","attrs":{"level":3},"content":[{"type":"text","text":"in a list"}]}]}]}]}`)})
-	s := service(t, f, people.Own)
-	ctx := context.Background()
-	v, err := s.Page(ctx, "112")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := s.PlanUpdate(ctx, UpdateInput{Page: "112", Version: v.Version, Markdown: v.Body + "\n\nmore"}); err == nil || !strings.Contains(err.Error(), "heading") {
-		t.Errorf("err = %v", err)
 	}
 }

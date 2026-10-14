@@ -4,6 +4,16 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+### Added
+
+- Pages read and write expands, column layouts, smart links, colored text and images as Markdown forms, and keep everything else, such as panels, status lozenges or macros, as placeholders that name the part without its content. An update keeps or removes them, and the approval lists the parts added and removed.
+- Macros: `dok config macros allow` for the table of contents, child pages and whiteboard embeds, `learn` for any macro inserted on a page in the editor, and `fence` to turn fenced code such as `mermaid` into a diagram app's macro. Pages show allowed macros as ```` ```macro:NAME ```` blocks; MCP `list_macros` lists them. Macros that include content from elsewhere or embed code are never created.
+- `--attach` on `dok create` and `dok update`, and `attach` on MCP `create_page` and `update_page`, upload files first for images that name them; new pages with images are created as drafts, filled once the files are attached.
+
+### Changed
+
+- Updates no longer refuse parts without a Markdown form; they are kept through placeholders.
+
 ## [0.1.3] - 2026-10-13
 
 ### Fixed

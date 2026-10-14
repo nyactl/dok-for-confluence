@@ -69,13 +69,68 @@ dok children 123456
 dok comments 123456
 
 dok create --parent 123456 --title "Design notes" --file notes.md   # a draft
+dok create --parent 123456 --title "Architecture" --file arch.md --attach ./diagram.png
 dok publish 234567
 dok update 123456 --version 7 --file runbook.md --message "Add rollback steps"
 dok comment 123456 --body "Updated the rollback steps, @[Person A]"
 dok attach 123456 ./diagram.svg
 ```
 
-Every change shows exactly what will happen, a line diff for updates, and asks for confirmation. Parts of a page that have no Markdown form, such as app macros, images, layouts, expands or status lozenges, are protected: macros show up as `(macro "Title" not shown)` when reading, and an update that would delete any of these parts is refused with their names, so change such pages in Confluence. A title change alone keeps the content as it is. Updates and publishing need the page ID typed; other changes a `y`. Add `--json` to read commands for machine-readable output.
+Every change shows exactly what will happen: a line diff for updates, the macros, images and other parts it adds or removes, and the files it attaches first. Updates and publishing need the page ID typed; other changes a `y`. Add `--json` to read commands for machine-readable output.
+
+## Pages as Markdown
+
+Pages read and write as CommonMark, with forms for what the Confluence editor adds:
+
+`````markdown
+<details>
+<summary>Rollback steps</summary>
+
+1. Stop the service
+
+</details>
+
+````columns
+```column 50
+Left
+```
+
+```column 50
+Right
+```
+````
+
+See <card:https://your-team.atlassian.net/browse/PROJ-1>, now {color:#006644}green{/color}.
+
+![diagram.png](attachment:diagram.png "center 600px")
+
+```macro:toc
+maxLevel: 2
+```
+`````
+
+Images refer to the page's attachments by file name; `--attach` uploads new files first, in the same approved change. Everything without a form, such as macros that are not allowed, panels, status lozenges or Jira lists, appears as a placeholder:
+
+````markdown
+```adf
+{"type":"kept","attrs":{"id":"k3-1a2b3c","what":"panel"}}
+```
+````
+
+A placeholder names the part but not its content, which can hold people. Keep it to keep the part, or remove it to delete the part; the approval names what is removed. Placeholders cannot be invented or copied between pages, and any other JSON is refused.
+
+## Macros
+
+dok creates only the macros a profile allows, as ```` ```macro:NAME ```` blocks of `name: value` lines, each value checked:
+
+```sh
+dok config macros allow toc children whiteboard   # built in; whiteboards from allowed spaces only
+dok config macros learn 123456                    # macros inserted on that page in the editor, e.g. an app's
+dok config macros fence mermaid mermaid-diagram source.text   # ```mermaid code becomes that macro
+dok config macros list
+```
+
+`learn` works for any app, whether or not dok knows it: it keeps the macro's identity and settings, never the page's text or people, and each macro is confirmed in the terminal. Macros that show content from elsewhere (include page, excerpt include and the like) or embed HTML, iframes or scripts are never created, even if listed by hand. Assistants see the allowed macros with `list_macros`.
 
 ## Use with an MCP client
 
@@ -96,9 +151,9 @@ No credentials go into the client configuration; dok reads them from its own con
 
 | Read tools | Write tools (with `--allow-writes`) |
 |---|---|
-| `whoami`, `list_spaces`, `get_page`, `list_children`, `search_pages`, `list_comments`, `list_attachments` | `create_page`, `update_page`, `publish_page`, `add_comment`, `attach_file` |
+| `whoami`, `list_spaces`, `get_page`, `list_children`, `search_pages`, `list_comments`, `list_attachments`, `list_macros` | `create_page`, `update_page`, `publish_page`, `add_comment`, `attach_file` |
 
-Each write opens an approval dialog in the client, through MCP elicitation, with the exact change. Approvals are single-use, expire after 10 minutes and are bound to the change shown. Clients that cannot show such dialogs cannot write. `attach_file` only accepts absolute paths and refuses hidden files and folders.
+Each write opens an approval dialog in the client, through MCP elicitation, with the exact change. Approvals are single-use, expire after 10 minutes and are bound to the change shown. Clients that cannot show such dialogs cannot write. `attach_file`, and `attach` on `create_page` and `update_page`, only accept absolute paths and refuse hidden files and folders.
 
 ## Privacy modes
 
@@ -113,8 +168,9 @@ Profiles keep sites apart: `dok --profile test ...` or `DOK_PROFILE=test`. The d
 
 ## Limitations
 
-- Page bodies are converted to and from Markdown. Confluence features without a Markdown form (macros, layouts, panels, status lozenges) are read as text, and a page written with dok contains only what Markdown can express. Updating a page with such features replaces them; the diff shows it before you approve.
-- Mermaid diagrams are written as code blocks; rendering them is planned.
+- Parts without a Markdown form are kept as placeholders, but cannot be changed through dok; edit them in Confluence. Attributes of parts that do have a form, such as table column widths, are not kept.
+- Macros with a body (such as page properties) can be kept, not created.
+- Mermaid diagrams render only through a diagram app installed on the site, mapped with `dok config macros fence`; otherwise they stay code blocks.
 - dok cannot delete pages, change page permissions or download attachments.
 - macOS only for now, because of the Keychain.
 

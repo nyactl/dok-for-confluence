@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/nyactl/approvekit/profile"
+
+	"github.com/nyactl/dok-for-confluence/internal/macros"
 )
 
 // PrivacyMode controls whether other people appear by name.
@@ -33,6 +35,75 @@ type Config struct {
 	Spaces []string `json:"spaces,omitempty"`
 	// Parents optionally narrows writes to the trees below these pages.
 	Parents []string `json:"parents,omitempty"`
+	// Macros are the macros dok may create on pages.
+	Macros Macros `json:"macros,omitzero"`
+}
+
+// Macros lists the macros dok may create: built-in ones by name, and ones
+// learned from pages. Fences turn fenced code of a language, such as
+// mermaid, into a macro.
+type Macros struct {
+	Builtin []string                `json:"builtin,omitempty"`
+	Learned []macros.Def            `json:"learned,omitempty"`
+	Fences  map[string]macros.Fence `json:"fences,omitempty"`
+}
+
+// Allowed returns the definitions of the allowed macros. Forbidden macros
+// are left out even if the file lists them.
+func (m Macros) Allowed() []macros.Def {
+	builtin := macros.Builtin()
+	var out []macros.Def
+	for _, name := range m.Builtin {
+		if d, ok := builtin[name]; ok {
+			out = append(out, d)
+		}
+	}
+	for _, d := range m.Learned {
+		if d.Validate() == nil {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// Def returns the allowed macro of that name.
+func (m Macros) Def(name string) (macros.Def, bool) {
+	for _, d := range m.Allowed() {
+		if d.Name == name {
+			return d, true
+		}
+	}
+	return macros.Def{}, false
+}
+
+func (m Macros) validate() error {
+	builtin := macros.Builtin()
+	seen := map[string]bool{}
+	for _, name := range m.Builtin {
+		if _, ok := builtin[name]; !ok || seen[name] {
+			return fmt.Errorf("unknown or repeated built-in macro %q", name)
+		}
+		seen[name] = true
+	}
+	for _, d := range m.Learned {
+		if err := d.Validate(); err != nil {
+			return err
+		}
+		if seen[d.Name] {
+			return fmt.Errorf("two macros are named %s", d.Name)
+		}
+		seen[d.Name] = true
+	}
+	for lang, f := range m.Fences {
+		d, ok := m.Def(f.Macro)
+		if !macros.ValidName(lang) || !ok {
+			return fmt.Errorf("fenced %q code maps to %q, which is not an allowed macro", lang, f.Macro)
+		}
+		if err := d.CheckFence(f); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // DefaultProfile is used when no profile is selected; it is meant for
@@ -98,7 +169,7 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("invalid parent page ID %q", id)
 		}
 	}
-	return nil
+	return c.Macros.validate()
 }
 
 // NormalizeSpaceKey checks a space key. Keys keep their case; Confluence

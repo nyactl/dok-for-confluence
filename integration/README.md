@@ -28,4 +28,6 @@ DOK_PROFILE=test DOK_IT_SPACE=KEY make it
 
 Set `DOK_IT_PARENT` to a page ID to create the test pages below that page instead of at the top of the space.
 
+Set `DOK_IT_EDITOR_PAGE` to the ID of a page made in the Confluence editor, with expands, layouts, images, colored text and macros: the tests copy it, edit the copy through dok and check that every part survives. The page itself is only read.
+
 The first run of a freshly built test binary asks macOS for permission to read the token from the Keychain; choose "Always Allow".

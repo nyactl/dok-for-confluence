@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	github.com/nyactl/approvekit v0.1.0
-	github.com/nyactl/go-adf v0.1.0
+	github.com/nyactl/go-adf v0.2.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/term v0.46.0
 )

@@ -200,6 +200,25 @@ func (c *Client) Page(ctx context.Context, id string, draft bool) (*Page, error)
 	return &p, nil
 }
 
+// ViewHTML returns a page as Confluence renders it, where macros that cannot
+// be shown are marked.
+func (c *Client) ViewHTML(ctx context.Context, id string) (string, error) {
+	if err := CheckID(id); err != nil {
+		return "", err
+	}
+	var p struct {
+		Body struct {
+			View struct {
+				Value string `json:"value"`
+			} `json:"view"`
+		} `json:"body"`
+	}
+	if err := c.do(ctx, http.MethodGet, "/wiki/api/v2/pages/"+id, url.Values{"body-format": {"view"}}, nil, &p); err != nil {
+		return "", err
+	}
+	return p.Body.View.Value, nil
+}
+
 // PageMeta returns a page without its body.
 func (c *Client) PageMeta(ctx context.Context, id string) (*Page, error) {
 	if err := CheckID(id); err != nil {
@@ -246,8 +265,10 @@ func (c *Client) FooterComments(ctx context.Context, id string, limit int) ([]Co
 
 // Attachment is a file attached to a page.
 type Attachment struct {
-	ID        string   `json:"id"`
-	Title     string   `json:"title"`
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	// FileID identifies the file in media nodes of page bodies.
+	FileID    string   `json:"fileId"`
 	MediaType string   `json:"mediaType"`
 	FileSize  int64    `json:"fileSize"`
 	Version   *Version `json:"version"`
@@ -360,9 +381,9 @@ func (c *Client) AddFooterComment(ctx context.Context, pageID string, doc json.R
 	return &cm, nil
 }
 
-// AddAttachment uploads a file to a page. The v2 API has no upload, so this
-// uses the v1 API.
-func (c *Client) AddAttachment(ctx context.Context, pageID, filename string, data []byte) (*Attachment, error) {
+// AddAttachment uploads a file to a page, or to a draft. The v2 API has no
+// upload, so this uses the v1 API, which finds drafts only when asked to.
+func (c *Client) AddAttachment(ctx context.Context, pageID, filename string, data []byte, draft bool) (*Attachment, error) {
 	if err := CheckID(pageID); err != nil {
 		return nil, err
 	}
@@ -372,17 +393,25 @@ func (c *Client) AddAttachment(ctx context.Context, pageID, filename string, dat
 	}
 	var out struct {
 		Results []struct {
-			ID    string `json:"id"`
-			Title string `json:"title"`
+			ID         string `json:"id"`
+			Title      string `json:"title"`
+			Extensions struct {
+				FileID string `json:"fileId"`
+			} `json:"extensions"`
 		} `json:"results"`
 	}
-	if err := c.do(ctx, http.MethodPost, "/wiki/rest/api/content/"+pageID+"/child/attachment", nil, body, &out); err != nil {
+	var query url.Values
+	if draft {
+		query = url.Values{"status": {"draft"}}
+	}
+	if err := c.do(ctx, http.MethodPost, "/wiki/rest/api/content/"+pageID+"/child/attachment", query, body, &out); err != nil {
 		return nil, err
 	}
 	if len(out.Results) == 0 {
 		return nil, errors.New("the upload was accepted but Confluence returned no attachment")
 	}
-	return &Attachment{ID: out.Results[0].ID, Title: out.Results[0].Title}, nil
+	r := out.Results[0]
+	return &Attachment{ID: r.ID, Title: r.Title, FileID: r.Extensions.FileID}, nil
 }
 
 // scopesFor names the scoped-token scopes of the endpoints dok uses, as given

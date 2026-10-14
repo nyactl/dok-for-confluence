@@ -20,5 +20,6 @@ Reports that break any of these are in scope:
 4. **Containment:** the API token is only sent to the configured `https` site or Atlassian's API gateway; redirects to another host are refused; the token is stored only in the macOS Keychain.
 5. **Output safety:** terminal control sequences, bidirectional overrides and invisible characters from Confluence are removed before output.
 6. **Development builds** never use the default profile or a profile that did not opt in.
+7. **Page parts:** parts of a page without a Markdown form reach the output only as placeholders naming their kind, without their content; an update can keep or remove them but not add or change them, and other JSON is refused. Only macros the profile allows are created, never ones that include content from elsewhere or embed code, and a learned definition holds no page text and no people.
 
 Known limits, not vulnerabilities: names typed in free text by people dok has not seen in this session; the contents of attachments; a program that controls a pseudo-terminal can type a CLI confirmation; MCP clients configured to answer elicitations automatically.

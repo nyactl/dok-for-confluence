@@ -4,6 +4,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+## [0.2.0] - 2026-10-14
+
 ### Added
 
 - Pages read and write expands, column layouts, smart links, colored text and images as Markdown forms, and keep everything else, such as panels, status lozenges or macros, as placeholders that name the part without its content. An update keeps or removes them, and the approval lists the parts added and removed.
@@ -43,6 +45,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Scoped API tokens through the Atlassian API gateway, with the missing scope named in errors.
 - Profiles, and development builds that only use profiles that opted in.
 
+[0.2.0]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.2.0
 [0.1.3]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.3
 [0.1.2]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.2
 [0.1.1]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.1

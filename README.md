@@ -12,6 +12,8 @@ Read and write **Confluence Cloud** pages from the terminal, or let an assistant
 
 The command is `dok`. Its companion for Jira is [tix-for-jira](https://github.com/nyactl/tix-for-jira); both build on [approvekit](https://github.com/nyactl/approvekit).
 
+![dok reads a page with an expand, a table of contents macro and placeholders, and shows the diff before an update](docs/demo.gif)
+
 Not affiliated with or endorsed by Atlassian. Confluence, Jira and Atlassian are trademarks of Atlassian.
 
 ## dok-for-confluence or Atlassian's Rovo MCP server?

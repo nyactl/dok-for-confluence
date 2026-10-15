@@ -4,6 +4,12 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+### Added
+
+- Commands that take a page let you choose one of the pages in the allowed spaces when it is left out, in a picker you filter by typing (from approvekit).
+- Tab completion of page IDs, with their titles, and of allowed macro names.
+- People keep their labels across commands and MCP sessions of a profile, so `@[Person A]` mentions work for anyone shown before.
+
 ## [0.2.0] - 2026-10-14
 
 ### Added

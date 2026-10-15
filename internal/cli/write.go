@@ -27,7 +27,7 @@ func (a *App) addWriteCommands(root *cobra.Command) {
 	create.Flags().Bool("publish", false, "publish right away instead of creating a draft")
 	create.Flags().StringArray("attach", nil, "a file to attach first, for an image written as ![name](attachment:name); repeat for more")
 
-	update := svcCmd(a, "update <page>", "Replace a page's content with Markdown; fails if the page changed since --version", cobra.ExactArgs(1), func(cmd *cobra.Command, svc *core.Service, args []string) error {
+	update := a.pageCmd("update [page]", "Replace a page's content with Markdown; fails if the page changed since --version", func(cmd *cobra.Command, svc *core.Service, page string) error {
 		body, err := a.fileArg(cmd)
 		if err != nil {
 			return err
@@ -36,7 +36,7 @@ func (a *App) addWriteCommands(root *cobra.Command) {
 		title, _ := cmd.Flags().GetString("title")
 		message, _ := cmd.Flags().GetString("message")
 		attach, _ := cmd.Flags().GetStringArray("attach")
-		p, err := svc.PlanUpdate(cmd.Context(), core.UpdateInput{Page: args[0], Markdown: body, Title: title, Version: version, Message: message, Attach: attach})
+		p, err := svc.PlanUpdate(cmd.Context(), core.UpdateInput{Page: page, Markdown: body, Title: title, Version: version, Message: message, Attach: attach})
 		return a.apply(cmd, svc, p, err)
 	})
 	update.Flags().String("file", "", "Markdown file with the new content, or - for stdin")
@@ -50,12 +50,12 @@ func (a *App) addWriteCommands(root *cobra.Command) {
 		return a.apply(cmd, svc, p, err)
 	})
 
-	comment := svcCmd(a, "comment <page>", "Add a comment written in Markdown", cobra.ExactArgs(1), func(cmd *cobra.Command, svc *core.Service, args []string) error {
+	comment := a.pageCmd("comment [page]", "Add a comment written in Markdown; mention people as @[label], as shown by dok", func(cmd *cobra.Command, svc *core.Service, page string) error {
 		body, err := a.textArg(cmd, "body")
 		if err != nil {
 			return err
 		}
-		p, err := svc.PlanComment(cmd.Context(), args[0], body)
+		p, err := svc.PlanComment(cmd.Context(), page, body)
 		return a.apply(cmd, svc, p, err)
 	})
 	comment.Flags().String("body", "", "comment text in Markdown, or - for stdin")
@@ -65,5 +65,11 @@ func (a *App) addWriteCommands(root *cobra.Command) {
 		return a.apply(cmd, svc, p, err)
 	})
 
+	attach.ValidArgsFunction = func(cmd *cobra.Command, args []string, toComplete string) ([]cobra.Completion, cobra.ShellCompDirective) {
+		if len(args) == 0 {
+			return a.completePages(cmd, args, toComplete)
+		}
+		return nil, cobra.ShellCompDirectiveDefault // the file
+	}
 	root.AddCommand(create, update, publish, comment, attach)
 }

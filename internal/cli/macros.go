@@ -69,9 +69,10 @@ func (a *App) macrosCmd() *cobra.Command {
 		},
 	}
 	remove := &cobra.Command{
-		Use:   "remove NAME...",
-		Short: "Stop allowing macros",
-		Args:  cobra.MinimumNArgs(1),
+		Use:               "remove NAME...",
+		Short:             "Stop allowing macros",
+		Args:              cobra.MinimumNArgs(1),
+		ValidArgsFunction: a.completeMacros,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.saveConfig(cmd, func(cfg *config.Config) (string, error) {
 				for _, name := range args {

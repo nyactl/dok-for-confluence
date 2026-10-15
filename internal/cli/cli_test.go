@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/nyactl/approvekit/keychain"
+	"github.com/nyactl/approvekit/picker"
 	"github.com/nyactl/approvekit/profile"
 
 	"github.com/nyactl/dok-for-confluence/internal/config"
@@ -19,10 +20,31 @@ import (
 
 // script is a fake terminal that answers prompts in order.
 type script struct {
+	picks   []string
+	offered []string
 	answers []string
 	secrets []string
 	asked   []string
 	noTTY   bool
+}
+
+// Choose picks the first line containing the next of picks; none cancels.
+func (s *script) Choose(opts picker.Options) (picker.Result, error) {
+	if s.noTTY {
+		return picker.Result{Index: -1}, errNoTerminal
+	}
+	s.offered = opts.Items
+	if len(s.picks) == 0 {
+		return picker.Result{Index: -1}, picker.ErrCanceled
+	}
+	want := s.picks[0]
+	s.picks = s.picks[1:]
+	for i, l := range opts.Items {
+		if strings.Contains(l, want) {
+			return picker.Result{Index: i}, nil
+		}
+	}
+	return picker.Result{Index: -1}, picker.ErrCanceled
 }
 
 func (s *script) Prompt(q string) (string, error) {

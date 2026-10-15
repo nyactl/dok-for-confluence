@@ -47,7 +47,7 @@ func instructions(site string, mode people.Mode, spaces []core.SpaceView, writes
 	if mode == people.Own {
 		b.WriteString("People other than the user appear as stable labels such as \"Person A\"; the user is \"Me\". Do not try to find out who a label is.\n\n")
 	}
-	b.WriteString("Pages are Markdown. Mentions appear as @[label]; to mention someone in text you write, use the same form. Only people already shown in this session can be mentioned.\n\n")
+	b.WriteString("Pages are Markdown. Mentions appear as @[label]; to mention someone in text you write, use the same form. Only people shown before, in this or an earlier session, can be mentioned. Labels stay the same across sessions.\n\n")
 	b.WriteString(syntaxHelp + "\n\n")
 	if writes {
 		b.WriteString("Every change is shown to the user for approval before it happens. New pages are drafts unless publishing is requested. ")

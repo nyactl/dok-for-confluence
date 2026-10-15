@@ -12,7 +12,25 @@ Read and write **Confluence Cloud** pages from the terminal, or let an assistant
 
 The command is `dok`. Its companion for Jira is [tix-for-jira](https://github.com/nyactl/tix-for-jira); both build on [approvekit](https://github.com/nyactl/approvekit).
 
+![dok reads a page with an expand, a table of contents macro and placeholders, and shows the diff before an update](docs/demo.gif)
+
 Not affiliated with or endorsed by Atlassian. Confluence, Jira and Atlassian are trademarks of Atlassian.
+
+## dok-for-confluence or Atlassian's Rovo MCP server?
+
+Atlassian offers its own hosted [Rovo MCP server](https://developer.atlassian.com/cloud/rovo-mcp/) for Jira, Confluence and other Atlassian apps. It is the broader tool; dok-for-confluence is the narrower, stricter one. Both can be used side by side.
+
+| | dok-for-confluence | Rovo MCP server |
+|---|---|---|
+| What the assistant sees | the spaces you allowed; writes optionally only below certain pages | everything your account can see |
+| Other people | "Person A", "Person B"; no names, emails or account IDs | as stored in Confluence |
+| Writes | each one approved by you in a dialog the assistant cannot answer, single-use and bound to the shown change; new pages are drafts | as your AI client handles tool calls |
+| Macros and page parts | only macros you allowed; other parts kept as placeholders, never shown raw or invented | as written by the assistant |
+| Runs | locally; the token stays in your system keychain | hosted by Atlassian, OAuth or API token |
+| Covers | Confluence | Jira, Confluence, Jira Service Management, Bitbucket, Loom and more, with semantic search |
+| Cost | free, open source | some tools use Rovo credits |
+
+Use dok-for-confluence when colleagues' data and other spaces must not reach the assistant, or when nothing should change in Confluence without your explicit approval. Use Rovo for broad research across Atlassian apps where that is acceptable.
 
 ## Install
 

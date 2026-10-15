@@ -176,26 +176,29 @@ func TestSpacesAddAndRemoveIgnoreCase(t *testing.T) {
 	}
 }
 
-func TestUpdateNeedsTypedPageID(t *testing.T) {
+// Every change asks y/N; anything but y, including just Enter, cancels.
+func TestConfirmationDefaultsToNo(t *testing.T) {
 	e := newEnv(t).loggedIn(t, "DOC")
 	file := filepath.Join(t.TempDir(), "page.md")
 	if err := os.WriteFile(file, []byte("Step one\n\nStep two"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	e.tty.answers = []string{"y"}
-	if _, _, err := e.run(t, "update", "101", "--file", file, "--version", "1"); err == nil || !strings.Contains(err.Error(), "not confirmed") {
-		t.Errorf("y must not confirm an update: %v", err)
+	for _, answer := range []string{"", "n", "101", "yep"} {
+		e.tty.answers = []string{answer}
+		if _, _, err := e.run(t, "update", "101", "--file", file, "--version", "1"); err == nil || !strings.Contains(err.Error(), "not confirmed") {
+			t.Errorf("%q confirmed an update: %v", answer, err)
+		}
 	}
 	if e.fake.Pages["101"].Version != 1 {
 		t.Fatal("page changed without confirmation")
 	}
-	e.tty.answers = []string{"101"}
+	e.tty.answers = []string{"yes"}
 	out, _, err := e.run(t, "update", "101", "--file", file, "--version", "1")
 	if err != nil || !strings.Contains(out, "version 2") {
 		t.Fatalf("update: %q, %v", out, err)
 	}
 	asked := e.tty.asked[len(e.tty.asked)-1]
-	if !strings.Contains(asked, "Confluence site: "+e.fake.URL()+" (profile default)") || !strings.Contains(asked, "+ Step two") || !strings.Contains(asked, "Type 101") {
+	if !strings.Contains(asked, "Confluence site: "+e.fake.URL()+" (profile default)") || !strings.Contains(asked, "+ Step two") || !strings.HasSuffix(asked, "Apply this change? [y/N] ") {
 		t.Errorf("asked %q", asked)
 	}
 }

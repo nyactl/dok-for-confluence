@@ -153,7 +153,7 @@ func (a *App) authCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := confirm(a.TTY, fmt.Sprintf("Remove the API token for %s on %s (profile %s) from the Keychain?", cfg.Email, cfg.Site, prof), "", false); err != nil {
+			if err := confirm(a.TTY, fmt.Sprintf("Remove the API token for %s on %s (profile %s) from the Keychain?", cfg.Email, cfg.Site, prof)); err != nil {
 				return err
 			}
 			if err := a.Secrets.Delete(keychain.AccountKey(cfg.Site, cfg.Email)); err != nil {

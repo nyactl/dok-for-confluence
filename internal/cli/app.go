@@ -214,7 +214,7 @@ func (a *App) apply(cmd *cobra.Command, svc *core.Service, plan *core.Plan, err 
 		return err
 	}
 	desc := target(svc.Site(), prof) + "\n\n" + render.Plan(plan)
-	if err := confirm(a.TTY, desc, plan.Target, plan.Kind == core.Destructive); err != nil {
+	if err := confirm(a.TTY, desc); err != nil {
 		return err
 	}
 	msg, err := plan.Apply(cmd.Context())

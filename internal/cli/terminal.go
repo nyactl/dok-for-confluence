@@ -66,25 +66,14 @@ func (devTTY) Secret(question string) (string, error) {
 	return strings.TrimSpace(string(b)), nil
 }
 
-// confirm asks for approval. Destructive changes require typing the target
-// (a page ID or space key); everything else a "y".
-func confirm(t Terminal, description, key string, destructive bool) error {
-	text := "\n" + description + "\n\n"
-	if destructive && key != "" {
-		answer, err := t.Prompt(text + "Type " + key + " to apply this change: ")
-		if err != nil {
-			return err
-		}
-		if !strings.EqualFold(answer, key) {
-			return errors.New("not confirmed; nothing was changed")
-		}
-		return nil
-	}
-	answer, err := t.Prompt(text + "Apply this change? [y/N] ")
+// confirm asks for approval: only y or yes applies the change; anything
+// else, including just Enter, cancels it.
+func confirm(t Terminal, description string) error {
+	answer, err := t.Prompt("\n" + description + "\n\nApply this change? [y/N] ")
 	if err != nil {
 		return err
 	}
-	if a := strings.ToLower(answer); a != "y" && a != "yes" {
+	if a := strings.ToLower(strings.TrimSpace(answer)); a != "y" && a != "yes" {
 		return errors.New("not confirmed; nothing was changed")
 	}
 	return nil

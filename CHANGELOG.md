@@ -4,6 +4,12 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+## [0.3.1] - 2026-10-16
+
+### Changed
+
+- Every change asks `Apply this change? [y/N]`, the same in all commands: only `y` applies it, and just pressing Enter cancels. Updates, transitions and publishing no longer ask you to type the ticket key or page ID.
+
 ## [0.3.0] - 2026-10-16
 
 ### Added
@@ -53,6 +59,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Scoped API tokens through the Atlassian API gateway, with the missing scope named in errors.
 - Profiles, and development builds that only use profiles that opted in.
 
+[0.3.1]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.3.1
 [0.3.0]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.3.0
 [0.2.0]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.2.0
 [0.1.3]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.3

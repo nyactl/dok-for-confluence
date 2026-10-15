@@ -120,7 +120,7 @@ func (a *App) macrosCmd() *cobra.Command {
 			var learned []macros.Def
 			for _, d := range defs {
 				desc := fmt.Sprintf("Allow macro %s: %q (%s, %s)\nParameters: %s", d.Name, d.Title, d.ExtensionType, d.ExtensionKey, describeParams(d))
-				if err := confirm(a.TTY, desc, "", false); errors.Is(err, errNoTerminal) {
+				if err := confirm(a.TTY, desc); errors.Is(err, errNoTerminal) {
 					return err
 				} else if err != nil {
 					_, _ = fmt.Fprintln(a.Err, "not allowed: "+d.Name)

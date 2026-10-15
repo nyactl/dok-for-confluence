@@ -102,7 +102,7 @@ dok attach 123456 ./diagram.svg
 
 **Mentions:** `@[Person A]` mentions the person shown as Person A. Labels stay the same for a profile across commands and MCP sessions, kept in a file next to the profile's config that holds only account IDs and labels.
 
-Every change shows exactly what will happen: a line diff for updates, the macros, images and other parts it adds or removes, and the files it attaches first. Updates and publishing need the page ID typed; other changes a `y`. Add `--json` to read commands for machine-readable output.
+Every change shows exactly what will happen: a line diff for updates, the macros, images and other parts it adds or removes, and the files it attaches first. Every change asks `Apply this change? [y/N]`; only `y` applies it, and just pressing Enter cancels. Add `--json` to read commands for machine-readable output.
 
 ## Pages as Markdown
 

@@ -4,6 +4,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+## [0.3.0] - 2026-10-16
+
 ### Added
 
 - Commands that take a page let you choose one of the pages in the allowed spaces when it is left out, in a picker you filter by typing (from approvekit).
@@ -51,6 +53,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Scoped API tokens through the Atlassian API gateway, with the missing scope named in errors.
 - Profiles, and development builds that only use profiles that opted in.
 
+[0.3.0]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.3.0
 [0.2.0]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.2.0
 [0.1.3]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.3
 [0.1.2]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.1.2

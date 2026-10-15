@@ -96,6 +96,8 @@ dok attach 123456 ./diagram.svg
 
 **Choosing instead of typing:** leave out the page, as in `dok get`, `dok comment --body "…"` or `dok update --version 7 --file page.md`, and a picker lists the pages of the allowed spaces, most recently changed first: type part of the title, move with the arrow keys, press Enter.
 
+![dok get without a page: choose it by typing part of its title](docs/pick.gif)
+
 **Tab completion:** `dok completion zsh` (or `bash`, `fish`, `powershell`) prints a completion script; see `dok completion zsh --help`. Page IDs complete with their titles, and macro names in `dok config macros remove`; with a plugin such as [fzf-tab](https://github.com/Aloxaf/fzf-tab), completions show in fzf.
 
 **Mentions:** `@[Person A]` mentions the person shown as Person A. Labels stay the same for a profile across commands and MCP sessions, kept in a file next to the profile's config that holds only account IDs and labels.

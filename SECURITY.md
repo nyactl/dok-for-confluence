@@ -15,7 +15,7 @@ You will get an acknowledgement within 7 days. Fixes are released before details
 Reports that break any of these are in scope:
 
 1. **Allowlist:** no page, child page, comment, attachment or search result from a space outside the allowed spaces reaches the output, and nothing outside them is changed. With parent pages set, nothing outside those page trees is changed.
-2. **Redaction:** in mode `own`, other people's account IDs, emails and display names from structured data never reach the output; names and emails of people dok has seen are also replaced in page text.
+2. **Redaction:** in mode `own`, other people's account IDs, emails and display names from structured data never reach the output; names and emails of people dok has seen are also replaced in page text. Labels are kept per profile in a local file readable only by the user, holding account IDs and labels, never names or emails; a label resolves back to a person only if dok showed that person before.
 3. **Consent:** no write happens without an approval given by the human, in the terminal (CLI) or in an elicitation dialog (MCP). Approvals are single-use, expire after 10 minutes and are bound to the exact change shown. An update fails if the page changed after the version it is based on.
 4. **Containment:** the API token is only sent to the configured `https` site or Atlassian's API gateway; redirects to another host are refused; the token is stored only in the macOS Keychain.
 5. **Output safety:** terminal control sequences, bidirectional overrides and invisible characters from Confluence are removed before output.

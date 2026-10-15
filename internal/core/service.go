@@ -106,6 +106,11 @@ func New(ctx context.Context, cc *confluence.Client, s Settings) (*Service, erro
 	return svc, nil
 }
 
+// KeepLabels keeps people's labels in store, so a person has the same label
+// in every command and session of the profile, and mentions can name people
+// shown earlier.
+func (s *Service) KeepLabels(store people.LabelStore) { s.people.WithStore(store) }
+
 // Mode returns the privacy mode.
 func (s *Service) Mode() people.Mode { return s.people.Mode() }
 

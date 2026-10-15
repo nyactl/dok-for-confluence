@@ -135,18 +135,33 @@ var highlightRe = regexp.MustCompile(`@@@(end)?hl@@@`)
 // Search finds pages in the allowed spaces whose text contains text, most
 // recently changed first.
 func (s *Service) Search(ctx context.Context, text string, max int) ([]SearchHit, error) {
-	if len(s.keys) == 0 {
-		return nil, ErrNoSpaces
-	}
 	text = strings.TrimSpace(text)
 	if text == "" {
 		return nil, fmt.Errorf("search text is empty")
+	}
+	return s.search(ctx, "text ~ "+cqlString(text), max)
+}
+
+// RecentPages lists the pages of the allowed spaces, most recently changed
+// first.
+func (s *Service) RecentPages(ctx context.Context, max int) ([]SearchHit, error) {
+	return s.search(ctx, "", max)
+}
+
+// search finds pages in the allowed spaces that match the CQL condition,
+// which may be empty.
+func (s *Service) search(ctx context.Context, condition string, max int) ([]SearchHit, error) {
+	if len(s.keys) == 0 {
+		return nil, ErrNoSpaces
 	}
 	quoted := make([]string, len(s.keys))
 	for i, k := range s.keys {
 		quoted[i] = cqlString(k)
 	}
-	cql := fmt.Sprintf("type = page AND space in (%s) AND text ~ %s ORDER BY lastmodified DESC", strings.Join(quoted, ","), cqlString(text))
+	if condition != "" {
+		condition = " AND " + condition
+	}
+	cql := fmt.Sprintf("type = page AND space in (%s)%s ORDER BY lastmodified DESC", strings.Join(quoted, ","), condition)
 	rs, err := s.cc.Search(ctx, cql, limit(max))
 	if err != nil {
 		return nil, err

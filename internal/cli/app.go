@@ -152,7 +152,7 @@ func (a *App) loadConfig(cmd *cobra.Command) (string, *config.Config, error) {
 
 // service loads the profile's settings and token and connects to Confluence.
 func (a *App) service(cmd *cobra.Command) (*core.Service, *config.Config, error) {
-	_, cfg, err := a.loadConfig(cmd)
+	prof, cfg, err := a.loadConfig(cmd)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -178,7 +178,13 @@ func (a *App) service(cmd *cobra.Command) (*core.Service, *config.Config, error)
 		}
 		err = fmt.Errorf("%w; then run `dok auth login`", err)
 	}
-	return svc, cfg, err
+	if err != nil {
+		return nil, nil, err
+	}
+	if path, err := config.Path(prof); err == nil {
+		svc.KeepLabels(people.NewFileStore(strings.TrimSuffix(path, ".json") + ".labels.json"))
+	}
+	return svc, cfg, nil
 }
 
 // client returns a Confluence client; a non-empty cloudID routes it through

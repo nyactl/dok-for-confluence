@@ -4,6 +4,10 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+### Fixed
+
+- Search excerpts decode HTML character references before cleanup and redaction, so escaped punctuation displays correctly and encoded names are kept private.
+
 ## [0.3.1] - 2026-10-16
 
 ### Changed

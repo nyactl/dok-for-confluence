@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"html"
 	"regexp"
 	"strings"
 
@@ -182,7 +183,7 @@ func (s *Service) search(ctx context.Context, condition string, max int) ([]Sear
 		}
 		out = append(out, SearchHit{
 			ID: r.Content.ID, Title: s.people.Text(r.Content.Title), Space: r.Content.Space.Key,
-			Excerpt: s.people.Text(highlightRe.ReplaceAllString(r.Excerpt, "")), Updated: s.when(r.LastModified),
+			Excerpt: s.people.Text(highlightRe.ReplaceAllString(html.UnescapeString(r.Excerpt), "")), Updated: s.when(r.LastModified),
 		})
 	}
 	return out, nil

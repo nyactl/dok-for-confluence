@@ -124,6 +124,33 @@ func TestSearchStaysInAllowedSpaces(t *testing.T) {
 	assertNoPersonalData(t, hits)
 }
 
+func TestSearchDecodesExcerptBeforeRedaction(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name, excerpt, want string
+	}{
+		{"character references", "fmt.Println(&quot;hi&quot;) &amp; &#39;bye&#39;", `fmt.Println("hi") & 'bye'`},
+		{"redacted names", "Alice&#32;Smith &amp; Bob&#32;Jones", "Person A & Person B"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			f := fixture(t)
+			f.AddPage(confluencetest.Page{ID: "103", SpaceID: "10", Title: "Excerpt example", AuthorID: "acc-alice", VersionAuthor: "acc-bob", Excerpt: tt.excerpt})
+			s := service(t, f, people.Own)
+			hits, err := s.Search(context.Background(), "Excerpt example", 0)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(hits) != 1 {
+				t.Fatalf("hits = %+v, want one result", hits)
+			}
+			if hits[0].Excerpt != tt.want {
+				t.Errorf("excerpt = %q, want %q", hits[0].Excerpt, tt.want)
+			}
+			assertNoPersonalData(t, hits)
+		})
+	}
+}
+
 func TestSpaceKeysMatchRegardlessOfCase(t *testing.T) {
 	t.Parallel()
 	f := fixture(t)

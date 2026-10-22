@@ -17,8 +17,8 @@ github.com/keybase/go-keychain v0.0.1 h1:way+bWYa6lDppZoZcgMbYsvC7GxljxrskdNInRt
 github.com/keybase/go-keychain v0.0.1/go.mod h1:PdEILRW3i9D8JcdM+FmY6RwkHGnhHxXwkPPMeUgOK1k=
 github.com/modelcontextprotocol/go-sdk v1.8.0 h1:KIvahhYqwtbeniWVPs3TcXEA7b8jEtwfBpOTAI+Urx4=
 github.com/modelcontextprotocol/go-sdk v1.8.0/go.mod h1:dL7u98E/zjJTGzEq+j30jQ8K2k1mb6LeAH4inEcSGts=
-github.com/nyactl/approvekit v0.3.0 h1:rADUeAGdfYPknbl65i+4S1ezefNIZiF3333Ni+3thA8=
-github.com/nyactl/approvekit v0.3.0/go.mod h1:EYCapuXdz1kMkz1cWZpi/JKXuW+rR3Hlyg1In8Ujtqg=
+github.com/nyactl/approvekit v0.3.1 h1:HjId/RlX96rEz+HV5F0Y17ajO7D13QFfYRPNZKZNFrI=
+github.com/nyactl/approvekit v0.3.1/go.mod h1:EYCapuXdz1kMkz1cWZpi/JKXuW+rR3Hlyg1In8Ujtqg=
 github.com/nyactl/go-adf v0.2.0 h1:HlDFR8nSW+u+rVOHa9Bgj9ui7R2Lv0elIUsMi0kuT7k=
 github.com/nyactl/go-adf v0.2.0/go.mod h1:KZxoUJNzV25K3W4Jb/rCRgLvPZ2j5+sXLS0NoIPEggk=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=

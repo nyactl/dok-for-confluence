@@ -4,6 +4,10 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+### Fixed
+
+- `dok auth login` on macOS no longer fails with "An invalid attempt to change the owner of an item. (-25244)" when the old token was saved by another build of dok, such as a Homebrew and a local build. The old token is removed with Apple's `security` tool and the new one belongs to the running build.
+
 ## [0.3.1] - 2026-10-16
 
 ### Changed

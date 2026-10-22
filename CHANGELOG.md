@@ -4,6 +4,8 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 
 ## Unreleased
 
+## [0.3.2] - 2026-10-22
+
 ### Fixed
 
 - `dok auth login` on macOS no longer fails with "An invalid attempt to change the owner of an item. (-25244)" when the old token was saved by another build of dok, such as a Homebrew and a local build. The old token is removed with Apple's `security` tool and the new one belongs to the running build.
@@ -63,6 +65,7 @@ All notable changes are documented here. The format follows [Keep a Changelog](h
 - Scoped API tokens through the Atlassian API gateway, with the missing scope named in errors.
 - Profiles, and development builds that only use profiles that opted in.
 
+[0.3.2]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.3.2
 [0.3.1]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.3.1
 [0.3.0]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.3.0
 [0.2.0]: https://github.com/nyactl/dok-for-confluence/releases/tag/v0.2.0

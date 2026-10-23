@@ -43,6 +43,8 @@ type Page struct {
 	AuthorID                             string
 	Version                              int
 	VersionAuthor                        string
+	// Excerpt overrides the search excerpt; by default the title is used.
+	Excerpt string
 	// Body is the page as an ADF document.
 	Body json.RawMessage
 }
@@ -476,7 +478,11 @@ func (f *Fake) search(w http.ResponseWriter, q map[string][]string) {
 		if text != "" && !strings.Contains(strings.ToLower(p.Title+" "+string(p.Body)), text) {
 			continue
 		}
-		res := map[string]any{"title": p.Title, "excerpt": "@@@hl@@@" + p.Title + "@@@endhl@@@", "lastModified": "2026-10-02T09:00:00.000Z",
+		excerpt := p.Excerpt
+		if excerpt == "" {
+			excerpt = p.Title
+		}
+		res := map[string]any{"title": p.Title, "excerpt": "@@@hl@@@" + excerpt + "@@@endhl@@@", "lastModified": "2026-10-02T09:00:00.000Z",
 			"content": map[string]any{"id": p.ID, "type": "page", "title": p.Title, "space": map[string]string{"key": space.Key},
 				"history": map[string]any{"createdBy": f.userJSON(p.AuthorID), "lastUpdated": map[string]any{"by": f.userJSON(p.VersionAuthor)}}}}
 		out = append(out, res)

@@ -7,7 +7,7 @@ require (
 	github.com/nyactl/approvekit v0.3.1
 	github.com/nyactl/go-adf v0.2.0
 	github.com/spf13/cobra v1.10.2
-	golang.org/x/term v0.46.0
+	golang.org/x/term v0.47.0
 )
 
 require (
@@ -24,6 +24,6 @@ require (
 	github.com/zalando/go-keyring v0.2.8 // indirect
 	golang.org/x/oauth2 v0.35.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
